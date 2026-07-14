@@ -3,7 +3,24 @@
 [ext_resource type="Script" uid="uid://dlm2phkxj3hob" path="res://player.gd" id="1_i3pqv"]
 [ext_resource type="Texture2D" uid="uid://d0lnxkwvawp5q" path="res://sprites/warrior/Warrior_2/Idle.png" id="1_onrkg"]
 [ext_resource type="Texture2D" uid="uid://ctuy5rgwvwjhs" path="res://sprites/warrior/Warrior_2/Walk.png" id="2_i3pqv"]
+[ext_resource type="Texture2D" path="res://sprites/warrior/Warrior_2/Attack_1.png" id="3_attack"]
 [ext_resource type="Script" path="res://health_component.gd" id="4_health"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_attack_0"]
+atlas = ExtResource("3_attack")
+region = Rect2(0, 0, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_attack_1"]
+atlas = ExtResource("3_attack")
+region = Rect2(96, 0, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_attack_2"]
+atlas = ExtResource("3_attack")
+region = Rect2(192, 0, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_attack_3"]
+atlas = ExtResource("3_attack")
+region = Rect2(288, 0, 96, 96)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_hqtel"]
 atlas = ExtResource("1_onrkg")
@@ -59,6 +76,23 @@ region = Rect2(672, 0, 96, 96)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_1hrjj"]
 animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_attack_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_attack_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_attack_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_attack_3")
+}],
+"loop": 0,
+"name": &"attack",
+"speed": 30.0
+}, {
 "frames": [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_hqtel")
@@ -155,6 +189,14 @@ color = Color(1, 0.9, 0.35, 0.8)
 [node name="AttackCooldown" type="Timer" parent="." unique_id=85725379]
 wait_time = 0.45
 one_shot = true
+
+[node name="SwingAudio" type="AudioStreamPlayer2D" parent="."]
+volume_db = -8.0
+max_polyphony = 2
+
+[node name="HitAudio" type="AudioStreamPlayer2D" parent="."]
+volume_db = -5.0
+max_polyphony = 4
 
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("4_health")

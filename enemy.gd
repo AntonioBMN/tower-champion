@@ -4,8 +4,11 @@ signal died
 
 @export var speed: float = 100.0
 @export var contact_damage: int = 1
+@export_group("Combat Feel")
+@export_range(100.0, 4000.0, 50.0) var knockback_deceleration: float = 1800.0
 
 var player: Node2D
+var knockback_velocity: Vector2 = Vector2.ZERO
 
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var health_component: HealthComponent = $HealthComponent
@@ -17,7 +20,10 @@ func _ready() -> void:
 	health_component.died.connect(_on_health_died)
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
+	if _process_knockback(delta):
+		return
+
 	if not is_instance_valid(player):
 		velocity = Vector2.ZERO
 		animated_sprite.play("idle")
@@ -55,8 +61,27 @@ func damage_player_on_contact() -> void:
 				collider.take_damage(contact_damage)
 
 
-func take_damage(amount: int) -> void:
-	health_component.take_damage(amount)
+func take_damage(amount: int) -> bool:
+	return health_component.take_damage(amount)
+
+
+func apply_knockback(impulse: Vector2) -> void:
+	knockback_velocity = impulse
+
+
+func _process_knockback(delta: float) -> bool:
+	if knockback_velocity.length_squared() < 1.0:
+		knockback_velocity = Vector2.ZERO
+		return false
+
+	velocity = knockback_velocity
+	move_and_slide()
+	knockback_velocity = knockback_velocity.move_toward(
+		Vector2.ZERO,
+		knockback_deceleration * delta
+	)
+	animated_sprite.play("walk")
+	return true
 
 
 func _on_health_damaged(_amount: int, current_health: int) -> void:

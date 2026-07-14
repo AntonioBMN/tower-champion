@@ -13,6 +13,7 @@ const PROJECTILE_SCENE: PackedScene = preload("res://enemy_projectile.tscn")
 @export_range(80.0, 500.0, 10.0) var retreat_distance: float = 220.0
 @export_range(120.0, 700.0, 10.0) var preferred_distance: float = 340.0
 @export_range(200.0, 1200.0, 25.0) var activation_distance: float = 750.0
+@export_range(100.0, 4000.0, 50.0) var knockback_deceleration: float = 1800.0
 
 @export_group("Ranged Attack")
 @export_range(1, 100, 1) var projectile_damage: int = 1
@@ -21,6 +22,7 @@ const PROJECTILE_SCENE: PackedScene = preload("res://enemy_projectile.tscn")
 @export_range(100.0, 1000.0, 10.0) var attack_range: float = 580.0
 
 var player: Node2D
+var knockback_velocity: Vector2 = Vector2.ZERO
 
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var health_component: HealthComponent = $HealthComponent
@@ -40,6 +42,9 @@ func _ready() -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	if _process_knockback(_delta):
+		return
+
 	if not is_instance_valid(player) or health_component.is_dead:
 		_stop_moving()
 		return
@@ -122,8 +127,27 @@ func _show_shoot_feedback() -> void:
 	tween.tween_property(animated_sprite, "modulate", Color.WHITE, 0.14)
 
 
-func take_damage(amount: int) -> void:
-	health_component.take_damage(amount)
+func take_damage(amount: int) -> bool:
+	return health_component.take_damage(amount)
+
+
+func apply_knockback(impulse: Vector2) -> void:
+	knockback_velocity = impulse
+
+
+func _process_knockback(delta: float) -> bool:
+	if knockback_velocity.length_squared() < 1.0:
+		knockback_velocity = Vector2.ZERO
+		return false
+
+	velocity = knockback_velocity
+	move_and_slide()
+	knockback_velocity = knockback_velocity.move_toward(
+		Vector2.ZERO,
+		knockback_deceleration * delta
+	)
+	animated_sprite.play("walk")
+	return true
 
 
 func _on_health_damaged(_amount: int, current_health: int) -> void:

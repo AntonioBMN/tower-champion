@@ -1,7 +1,7 @@
 extends CharacterBody2D
+signal died
 
 @export var speed: float = 250.0
-@export var max_health: int = 5
 
 @export_group("Sword Attack")
 @export_range(1, 100, 1) var attack_damage: int = 1
@@ -10,9 +10,6 @@ extends CharacterBody2D
 @export_range(0.05, 3.0, 0.05) var attack_interval: float = 0.45
 @export_range(0.05, 1.0, 0.01) var attack_active_duration: float = 0.12
 
-var current_health: int
-var is_invulnerable: bool = false
-var is_dead: bool = false
 var attack_active: bool = false
 var hit_targets: Dictionary = {}
 
@@ -24,22 +21,20 @@ var hit_targets: Dictionary = {}
 )
 @onready var attack_visual: Polygon2D = $SwordAttack/AttackVisual
 @onready var attack_cooldown: Timer = $AttackCooldown
-@onready var invulnerability_timer: Timer = $InvulnerabilityTimer
+@onready var health_component: HealthComponent = $HealthComponent
 
 
 func _ready() -> void:
-	current_health = max_health
 	configure_sword_attack()
 	sword_attack.body_entered.connect(_on_sword_attack_body_entered)
-	invulnerability_timer.timeout.connect(
-		_on_invulnerability_timer_timeout
-	)
+	health_component.damaged.connect(_on_health_damaged)
+	health_component.died.connect(_on_health_died)
 
 	print_health()
 
 
 func _physics_process(_delta: float) -> void:
-	if is_dead:
+	if health_component.is_dead:
 		return
 
 	var direction := Input.get_vector(
@@ -155,25 +150,14 @@ func show_attack_feedback() -> void:
 
 
 func take_damage(amount: int) -> void:
-	if is_invulnerable or is_dead:
-		return
+	health_component.take_damage(amount)
 
-	current_health -= amount
-	current_health = maxi(current_health, 0)
 
+func _on_health_damaged(_amount: int, current_health: int) -> void:
 	print_health()
 
-	if current_health <= 0:
-		die()
-		return
-
-	start_invulnerability()
-	flash_damage()
-
-
-func start_invulnerability() -> void:
-	is_invulnerable = true
-	invulnerability_timer.start()
+	if current_health > 0:
+		flash_damage()
 
 
 func flash_damage() -> void:
@@ -188,17 +172,20 @@ func flash_damage() -> void:
 	)
 
 
-func _on_invulnerability_timer_timeout() -> void:
-	is_invulnerable = false
-
-
 func print_health() -> void:
-	print("Vida do Player: ", current_health, "/", max_health)
+	print(
+		"Vida do Player: ",
+		health_component.current_health,
+		"/",
+		health_component.max_health
+	)
 
 
-func die() -> void:
-	is_dead = true
+func _on_health_died() -> void:
 	velocity = Vector2.ZERO
+	attack_active = false
+	attack_collision.set_deferred("disabled", true)
+	attack_visual.hide()
 
 	set_collision_layer_value(1, false)
 	set_collision_mask_value(3, false)
@@ -207,6 +194,7 @@ func die() -> void:
 	animated_sprite.stop()
 	animated_sprite.modulate = Color(0.35, 0.35, 0.35)
 
+	died.emit()
 	print("Player morreu!")
 
 	await get_tree().create_timer(1.0).timeout

@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://dlm2phkxj3hob" path="res://player.gd" id="1_i3pqv"]
 [ext_resource type="Texture2D" uid="uid://d0lnxkwvawp5q" path="res://sprites/warrior/Warrior_2/Idle.png" id="1_onrkg"]
 [ext_resource type="Texture2D" uid="uid://ctuy5rgwvwjhs" path="res://sprites/warrior/Warrior_2/Walk.png" id="2_i3pqv"]
+[ext_resource type="Script" path="res://health_component.gd" id="4_health"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_hqtel"]
 atlas = ExtResource("1_onrkg")
@@ -155,6 +156,6 @@ color = Color(1, 0.9, 0.35, 0.8)
 wait_time = 0.45
 one_shot = true
 
-[node name="InvulnerabilityTimer" type="Timer" parent="." unique_id=1236191244]
-wait_time = 0.8
-one_shot = true
+[node name="HealthComponent" type="Node" parent="."]
+script = ExtResource("4_health")
+invulnerability_duration = 0.8

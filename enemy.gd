@@ -3,18 +3,18 @@ extends CharacterBody2D
 signal died
 
 @export var speed: float = 100.0
-@export var max_health: int = 3
 @export var contact_damage: int = 1
 
-var current_health: int
 var player: Node2D
 
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
+@onready var health_component: HealthComponent = $HealthComponent
 
 
 func _ready() -> void:
-	current_health = max_health
 	player = get_tree().get_first_node_in_group("player") as Node2D
+	health_component.damaged.connect(_on_health_damaged)
+	health_component.died.connect(_on_health_died)
 
 
 func _physics_process(_delta: float) -> void:
@@ -56,13 +56,12 @@ func damage_player_on_contact() -> void:
 
 
 func take_damage(amount: int) -> void:
-	current_health -= amount
+	health_component.take_damage(amount)
 
-	if current_health <= 0:
-		die()
-		return
 
-	flash_damage()
+func _on_health_damaged(_amount: int, current_health: int) -> void:
+	if current_health > 0:
+		flash_damage()
 
 
 func flash_damage() -> void:
@@ -77,7 +76,6 @@ func flash_damage() -> void:
 	)
 
 
-func die() -> void:
+func _on_health_died() -> void:
 	died.emit()
 	queue_free()
-	

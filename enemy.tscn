@@ -3,6 +3,7 @@
 [ext_resource type="Texture2D" uid="uid://dibwkauav26gc" path="res://sprites/warrior/Warrior_1/Idle.png" id="1_4gyqm"]
 [ext_resource type="Script" uid="uid://c3g8qm57inhj1" path="res://enemy.gd" id="1_qi2p4"]
 [ext_resource type="Texture2D" uid="uid://3ehwojpykefx" path="res://sprites/warrior/Warrior_1/Walk.png" id="2_qi2p4"]
+[ext_resource type="Script" path="res://health_component.gd" id="3_health"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_iifgy"]
 atlas = ExtResource("1_4gyqm")
@@ -135,3 +136,7 @@ frame_progress = 0.29214275
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1024555400]
 position = Vector2(0, 50)
 shape = SubResource("RectangleShape2D_m50k7")
+
+[node name="HealthComponent" type="Node" parent="."]
+script = ExtResource("3_health")
+max_health = 3

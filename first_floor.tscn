@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://first_floor.gd" id="1_floor"]
 [ext_resource type="PackedScene" path="res://player.tscn" id="2_player"]
 [ext_resource type="Script" path="res://hud.gd" id="3_hud"]
+[ext_resource type="Script" path="res://minimap.gd" id="4_minimap"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_health_background"]
 bg_color = Color(0.11, 0.12, 0.16, 1)
@@ -159,6 +160,34 @@ theme_override_font_sizes/font_size = 18
 text = "5 / 5"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="MinimapPanel" type="ColorRect" parent="UI"]
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -272.0
+offset_top = 12.0
+offset_right = -12.0
+offset_bottom = 176.0
+color = Color(0.05, 0.06, 0.09, 0.88)
+mouse_filter = 2
+
+[node name="TitleLabel" type="Label" parent="UI/MinimapPanel"]
+offset_left = 12.0
+offset_top = 7.0
+offset_right = 110.0
+offset_bottom = 28.0
+theme_override_colors/font_color = Color(0.7, 0.73, 0.8, 1)
+theme_override_font_sizes/font_size = 13
+text = "MAPA"
+
+[node name="Minimap" type="Control" parent="UI/MinimapPanel"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 30.0
+offset_right = 248.0
+offset_bottom = 152.0
+mouse_filter = 2
+script = ExtResource("4_minimap")
 
 [node name="InvulnerabilityLabel" type="Label" parent="UI/HealthPanel"]
 visible = false

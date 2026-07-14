@@ -16,6 +16,10 @@ func _run() -> void:
 
 	var room_count: int = floor_scene.get("generated_room_count")
 	_expect(room_count >= 5 and room_count <= 8, "room count must be 5..8")
+	var minimap := floor_scene.get_node("UI/MinimapPanel/Minimap")
+	var initial_visited_rooms: Dictionary = minimap.get("visited_rooms")
+	_expect(initial_visited_rooms.size() == 1, "minimap should start with one room")
+	_expect(minimap.get("current_room_index") == 0, "minimap should highlight start")
 	floor_scene.call("_spawn_room_enemies", 1)
 
 	var has_ranged_enemy := false
@@ -79,6 +83,13 @@ func _run() -> void:
 		_expect(
 			spawned_rooms.has(destination),
 			"destination room should activate its enemy spawns"
+		)
+		var visited_rooms: Dictionary = minimap.get("visited_rooms")
+		_expect(visited_rooms.has(0), "minimap should retain previously visited room")
+		_expect(visited_rooms.has(destination), "minimap should reveal destination")
+		_expect(
+			minimap.get("current_room_index") == destination,
+			"minimap should highlight the current room"
 		)
 
 	if failures == 0:

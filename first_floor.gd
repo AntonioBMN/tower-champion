@@ -60,6 +60,7 @@ var is_transitioning: bool = false
 @onready var seed_label: Label = $UI/SeedLabel
 @onready var floor_cleared_label: Label = $UI/FloorClearedLabel
 @onready var transition_fade: ColorRect = $UI/TransitionFade
+@onready var minimap = $UI/MinimapPanel/Minimap
 
 
 func _ready() -> void:
@@ -67,6 +68,8 @@ func _ready() -> void:
 	_configure_seed()
 	_configure_tilemaps()
 	_generate_floor()
+	minimap.configure(room_grid_positions, room_connections)
+	minimap.visit_room(0)
 	_validate_floor()
 	_paint_tiles()
 	_build_wall_and_obstacle_collisions()
@@ -693,6 +696,7 @@ func _transition_to_room(destination_room: int, direction: Vector2i) -> void:
 	await fade_in.finished
 
 	current_room_index = destination_room
+	minimap.visit_room(destination_room)
 	var arrival_door_direction := -direction
 	var arrival_cell: Vector2i = room_door_cells[
 		destination_room

@@ -46,6 +46,7 @@ var is_transitioning: bool = false
 @onready var enemies: Node2D = $Enemies
 @onready var player: CharacterBody2D = $Player
 @onready var camera: Camera2D = $Player/Camera2D
+@onready var hud = $UI
 @onready var enemy_counter_label: Label = $UI/EnemyCounterLabel
 @onready var room_label: Label = $UI/RoomLabel
 @onready var seed_label: Label = $UI/SeedLabel
@@ -54,6 +55,7 @@ var is_transitioning: bool = false
 
 
 func _ready() -> void:
+	hud.bind_health(player.health_component)
 	_configure_seed()
 	_configure_tilemaps()
 	_generate_floor()

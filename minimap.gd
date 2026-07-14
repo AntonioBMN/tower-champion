@@ -220,32 +220,23 @@ func _draw_room_doors(
 		var door_cell_rect := _room_cell_rect(
 			room_index, door_cell, room_center, draw_scale
 		)
-		var door_thickness := maxf(2.5, 3.2 * draw_scale)
-		var desired_door_length := maxf(6.0, 9.0 * draw_scale)
-		var centered_wall_span := _door_centered_wall_span_cells(
+		var marker_layout := _calculate_door_marker_layout(
 			room_index, door_cell, direction
 		)
-		var available_door_length := maxf(
-			cell_size,
-			centered_wall_span * cell_size - 0.4
-		)
-		var door_length := minf(
-			desired_door_length,
-			available_door_length
-		)
-		var door_size := (
-			Vector2(door_thickness, door_length)
-			if direction.x != 0
-			else Vector2(door_length, door_thickness)
-		)
+		var door_thickness: float = marker_layout["thickness"]
+		var door_size: Vector2 = marker_layout["size"]
+		var tangent_offset: float = marker_layout["tangent_offset"]
+		var tangent := Vector2(-direction.y, direction.x)
 		var wall_edge_center := (
 			door_cell_rect.get_center()
 			+ Vector2(direction) * cell_size * 0.5
 		)
-		# Mantem toda a espessura da porta dentro do contorno da sala.
+		# A espessura cresce para dentro e o comprimento desliza pelo trecho
+		# de parede, preservando um marcador legivel perto de recortes.
 		var door_center := (
 			wall_edge_center
 			- Vector2(direction) * door_thickness * 0.5
+			+ tangent * tangent_offset
 		)
 
 		draw_rect(
@@ -255,20 +246,54 @@ func _draw_room_doors(
 		)
 
 
-func _door_centered_wall_span_cells(
+func _calculate_door_marker_layout(
 	room_index: int,
 	door_cell: Vector2i,
 	direction: Vector2i
-) -> int:
+) -> Dictionary:
+	var cell_size := ROOM_CELL_SIZE
 	var negative_extent := _door_wall_extent_cells(
 		room_index, door_cell, direction, -1
 	)
 	var positive_extent := _door_wall_extent_cells(
 		room_index, door_cell, direction, 1
 	)
-	# Como o marcador permanece centralizado na celula real da porta, ele so
-	# pode crescer igualmente ate o lado mais curto do trecho de parede.
-	return mini(negative_extent, positive_extent) * 2 + 1
+	var wall_min := -(negative_extent + 0.5) * cell_size
+	var wall_max := (positive_extent + 0.5) * cell_size
+	var wall_margin := 0.2
+	var available_length := maxf(
+		cell_size,
+		wall_max - wall_min - wall_margin * 2.0
+	)
+	var minimum_length := 6.0
+	var desired_length := 9.0
+	var door_length := minf(
+		maxf(minimum_length, desired_length),
+		available_length
+	)
+	var half_length := door_length * 0.5
+	var minimum_center := wall_min + wall_margin + half_length
+	var maximum_center := wall_max - wall_margin - half_length
+	var tangent_offset := (
+		clampf(0.0, minimum_center, maximum_center)
+		if minimum_center <= maximum_center
+		else (wall_min + wall_max) * 0.5
+	)
+	var door_thickness := 3.2
+	var door_size := (
+		Vector2(door_thickness, door_length)
+		if direction.x != 0
+		else Vector2(door_length, door_thickness)
+	)
+
+	return {
+		"length": door_length,
+		"thickness": door_thickness,
+		"size": door_size,
+		"tangent_offset": tangent_offset,
+		"wall_min": wall_min,
+		"wall_max": wall_max,
+	}
 
 
 func _door_wall_extent_cells(

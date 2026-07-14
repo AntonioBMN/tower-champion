@@ -47,14 +47,27 @@ func _run() -> void:
 	var l_room_right_door: Vector2i = floor_scene.call(
 		"_find_door_cell", 2, Vector2i.RIGHT
 	)
+	var l_door_layout: Dictionary = minimap.call(
+		"_calculate_door_marker_layout",
+		2,
+		l_room_right_door,
+		Vector2i.RIGHT
+	)
 	_expect(
-		minimap.call(
-			"_door_centered_wall_span_cells",
-			2,
-			l_room_right_door,
-			Vector2i.RIGHT
-		) == 1,
-		"right L-room door marker should stop before the cutout"
+		l_door_layout["length"] >= 6.0,
+		"right L-room door marker should preserve its minimum size"
+	)
+	_expect(
+		l_door_layout["tangent_offset"] < 0.0,
+		"right L-room door marker should grow toward available upper wall"
+	)
+	var marker_half_length: float = l_door_layout["length"] * 0.5
+	_expect(
+		l_door_layout["tangent_offset"] - marker_half_length
+		>= l_door_layout["wall_min"]
+		and l_door_layout["tangent_offset"] + marker_half_length
+		<= l_door_layout["wall_max"],
+		"shifted L-room door marker should remain inside the wall segment"
 	)
 	_expect(
 		generated_room_cells[3].size()

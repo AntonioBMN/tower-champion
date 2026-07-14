@@ -8,6 +8,7 @@ const FLOOR_TEXTURE: Texture2D = preload(
 	"res://sprites/map/dungeon/dungeon_tiles_32px.png"
 )
 const ENEMY_SCENE: PackedScene = preload("res://enemy.tscn")
+const RANGED_ENEMY_SCENE: PackedScene = preload("res://ranged_enemy.tscn")
 const DOOR_LOCKED_COLOR := Color(0.75, 0.16, 0.12, 0.95)
 const DOOR_OPEN_COLOR := Color(0.95, 0.67, 0.2, 0.95)
 
@@ -714,11 +715,20 @@ func _spawn_room_enemies(room_index: int) -> void:
 
 	spawned_rooms[room_index] = true
 
-	for spawn_cell in enemy_spawn_cells[room_index]:
-		var enemy := ENEMY_SCENE.instantiate() as Enemy
+	for spawn_index in range(enemy_spawn_cells[room_index].size()):
+		var spawn_cell: Vector2i = enemy_spawn_cells[room_index][spawn_index]
+		var use_ranged_enemy := (
+			room_index > 0
+			and room_index % 2 == 1
+			and spawn_index == 0
+		)
+		var enemy_scene := (
+			RANGED_ENEMY_SCENE if use_ranged_enemy else ENEMY_SCENE
+		)
+		var enemy := enemy_scene.instantiate() as CharacterBody2D
 		enemies.add_child(enemy)
 		enemy.global_position = _actor_position_for_cell(spawn_cell)
-		enemy.died.connect(_on_enemy_died.bind(room_index))
+		enemy.connect("died", _on_enemy_died.bind(room_index))
 
 
 func _on_enemy_died(room_index: int) -> void:

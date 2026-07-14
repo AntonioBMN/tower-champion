@@ -16,6 +16,21 @@ func _run() -> void:
 
 	var room_count: int = floor_scene.get("generated_room_count")
 	_expect(room_count >= 5 and room_count <= 8, "room count must be 5..8")
+	floor_scene.call("_spawn_room_enemies", 1)
+
+	var has_ranged_enemy := false
+
+	for enemy in floor_scene.get_node("Enemies").get_children():
+		var enemy_script := enemy.get_script() as Script
+
+		if (
+			enemy_script != null
+			and enemy_script.resource_path == "res://ranged_enemy.gd"
+		):
+			has_ranged_enemy = true
+			break
+
+	_expect(has_ranged_enemy, "second room should introduce a ranged enemy")
 
 	var connections: Array = floor_scene.get("room_connections")
 	var first_room_connections: Dictionary = connections[0]

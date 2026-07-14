@@ -1,9 +1,13 @@
 class_name CombatHUD
 extends CanvasLayer
 
+const RELIC_CATALOG = preload("res://relic_catalog.gd")
+
 var health_component: HealthComponent
+var relic_component: RelicComponent
 var damage_flash_tween: Tween
 var damage_value_tween: Tween
+var relic_notice_tween: Tween
 var damage_value_start_position: Vector2
 
 @onready var health_bar: ProgressBar = $HealthPanel/HealthBar
@@ -12,6 +16,8 @@ var damage_value_start_position: Vector2
 @onready var damage_value_label: Label = $HealthPanel/DamageValueLabel
 @onready var damage_flash: ColorRect = $DamageFlash
 @onready var death_overlay: ColorRect = $DeathOverlay
+@onready var relic_list_label: Label = $RelicPanel/RelicListLabel
+@onready var relic_notice: Label = $RelicNotice
 
 
 func _ready() -> void:
@@ -20,6 +26,7 @@ func _ready() -> void:
 	death_overlay.hide()
 	invulnerability_label.hide()
 	damage_value_label.hide()
+	relic_notice.hide()
 
 
 func bind_health(component: HealthComponent) -> void:
@@ -45,6 +52,51 @@ func bind_health(component: HealthComponent) -> void:
 	)
 	invulnerability_label.visible = health_component.is_invulnerable
 	death_overlay.visible = health_component.is_dead
+
+
+func bind_relics(component: RelicComponent) -> void:
+	if relic_component == component:
+		return
+
+	if is_instance_valid(relic_component):
+		if relic_component.relics_changed.is_connected(_on_relics_changed):
+			relic_component.relics_changed.disconnect(_on_relics_changed)
+		if relic_component.relic_collected.is_connected(_on_relic_collected):
+			relic_component.relic_collected.disconnect(_on_relic_collected)
+
+	relic_component = component
+	relic_component.relics_changed.connect(_on_relics_changed)
+	relic_component.relic_collected.connect(_on_relic_collected)
+	_on_relics_changed(relic_component.collected_ids)
+
+
+func _on_relics_changed(collected_ids: Array[String]) -> void:
+	if collected_ids.is_empty():
+		relic_list_label.text = "Nenhuma"
+		return
+
+	var lines: Array[String] = []
+	for relic_id in collected_ids:
+		lines.append("• " + RELIC_CATALOG.get_relic(relic_id)["name"])
+	relic_list_label.text = "\n".join(lines)
+
+
+func _on_relic_collected(
+	_relic_id: String,
+	relic_data: Dictionary
+) -> void:
+	if is_instance_valid(relic_notice_tween):
+		relic_notice_tween.kill()
+
+	relic_notice.text = "RELIQUIA OBTIDA: " + relic_data["name"]
+	relic_notice.modulate = relic_data["color"]
+	relic_notice.modulate.a = 0.0
+	relic_notice.show()
+	relic_notice_tween = create_tween()
+	relic_notice_tween.tween_property(relic_notice, "modulate:a", 1.0, 0.18)
+	relic_notice_tween.tween_interval(1.5)
+	relic_notice_tween.tween_property(relic_notice, "modulate:a", 0.0, 0.3)
+	relic_notice_tween.tween_callback(relic_notice.hide)
 
 
 func _disconnect_health_signals() -> void:

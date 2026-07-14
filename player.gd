@@ -35,11 +35,15 @@ var received_knockback_velocity: Vector2 = Vector2.ZERO
 @onready var attack_visual: Polygon2D = $SwordAttack/AttackVisual
 @onready var attack_cooldown: Timer = $AttackCooldown
 @onready var health_component: HealthComponent = $HealthComponent
+@onready var relic_component: RelicComponent = $RelicComponent
 @onready var swing_audio: AudioStreamPlayer2D = $SwingAudio
 @onready var hit_audio: AudioStreamPlayer2D = $HitAudio
 
 
 func _ready() -> void:
+	# Cada jogador precisa de um hitbox proprio para que relíquias de alcance
+	# nao alterem o recurso compartilhado usado por uma nova run.
+	attack_collision.shape = attack_collision.shape.duplicate()
 	configure_sword_attack()
 	sword_attack.body_entered.connect(_on_sword_attack_body_entered)
 	health_component.damaged.connect(_on_health_damaged)
@@ -311,6 +315,26 @@ func take_damage(amount: int) -> bool:
 
 func apply_knockback(impulse: Vector2) -> void:
 	received_knockback_velocity = impulse
+
+
+func collect_relic(relic_id: String) -> bool:
+	return relic_component.collect_relic(relic_id)
+
+
+func apply_relic_effects(effects: Dictionary) -> void:
+	attack_damage += int(effects.get("attack_damage_add", 0))
+	speed *= float(effects.get("speed_multiplier", 1.0))
+	attack_range += float(effects.get("attack_range_add", 0.0))
+	attack_width += float(effects.get("attack_width_add", 0.0))
+
+	var max_health_add := int(effects.get("max_health_add", 0))
+	var heal_amount := int(effects.get("heal_amount", 0))
+	if max_health_add > 0:
+		health_component.increase_max_health(max_health_add, heal_amount)
+	elif heal_amount > 0:
+		health_component.heal(heal_amount)
+
+	configure_sword_attack()
 
 
 func _on_health_damaged(_amount: int, current_health: int) -> void:

@@ -1,0 +1,73 @@
+TOWER CHAMPION - CATALOGO DE RELIQUIAS
+======================================
+
+Objetivo do sistema
+-------------------
+Relíquias são melhorias coletáveis que permanecem ativas até o fim da run.
+Elas são removidas quando uma nova run é iniciada. Uma mesma relíquia não pode
+ser coletada duas vezes na mesma run.
+
+Local atual de obtenção
+-----------------------
+O Santuário do primeiro andar oferece uma relíquia aleatória em um pedestal,
+além do item de cura já existente.
+
+
+1. LAMINA CARMESIM
+ID: crimson_blade
+Cor de identificação: vermelho
+Efeito: adiciona 1 ao dano de cada ataque de espada.
+Valor atual: attack_damage_add = 1
+Observação de balanceamento: aumenta diretamente a quantidade de vida removida
+por golpe e pode reduzir bastante o tempo necessário para matar inimigos melee.
+
+
+2. BOTAS DO VENDAVAL
+ID: wind_boots
+Cor de identificação: azul-ciano
+Efeito: aumenta a velocidade de movimento do jogador em 15%.
+Valor atual: speed_multiplier = 1.15
+Observação de balanceamento: melhora mobilidade, esquiva e exploração sem
+alterar diretamente o dano causado.
+
+
+3. OLHO LONGINQUO
+ID: far_eye
+Cor de identificação: roxo
+Efeito: aumenta o alcance da espada em 24 unidades e a largura da área de
+acerto em 8 unidades.
+Valores atuais:
+- attack_range_add = 24
+- attack_width_add = 8
+Observação de balanceamento: facilita acertar múltiplos inimigos e atacar com
+mais segurança, especialmente contra inimigos ranged.
+
+
+4. CORACAO DE FERRO
+ID: iron_heart
+Cor de identificação: laranja-dourado
+Efeito: aumenta a vida máxima em 1 e cura 1 ponto imediatamente.
+Valores atuais:
+- max_health_add = 1
+- heal_amount = 1
+Observação de balanceamento: a cura não ultrapassa a nova vida máxima.
+
+
+Regras técnicas atuais
+----------------------
+- O catálogo usado pelo jogo está em relic_catalog.gd.
+- Os efeitos são aplicados pelo RelicComponent do jogador.
+- A coleta é registrada na HUD.
+- Os valores são cumulativos entre relíquias diferentes.
+- Relíquias duplicadas são rejeitadas.
+- Reiniciar a cena cria um novo jogador e limpa a coleção da run anterior.
+
+
+Ideias para futuras relíquias
+-----------------------------
+- Redução do intervalo entre ataques.
+- Aumento do knockback da espada.
+- Chance de ataque crítico.
+- Projétil lançado ao atacar com vida cheia.
+- Escudo que bloqueia um golpe por sala.
+- Cura ao concluir determinado número de encontros.

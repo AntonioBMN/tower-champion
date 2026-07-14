@@ -10,8 +10,10 @@ const FLOOR_TEXTURE: Texture2D = preload(
 const ENEMY_SCENE: PackedScene = preload("res://enemy.tscn")
 const RANGED_ENEMY_SCENE: PackedScene = preload("res://ranged_enemy.tscn")
 const HEALTH_PICKUP_SCENE: PackedScene = preload("res://health_pickup.tscn")
+const RELIC_PICKUP_SCENE: PackedScene = preload("res://relic_pickup.tscn")
 const FLOOR_EXIT_SCENE: PackedScene = preload("res://floor_exit.tscn")
 const COMBAT_FEEDBACK = preload("res://combat_feedback.gd")
+const RELIC_CATALOG = preload("res://relic_catalog.gd")
 const DOOR_LOCKED_COLOR := Color(0.75, 0.16, 0.12, 0.95)
 const DOOR_OPEN_COLOR := Color(0.95, 0.67, 0.2, 0.95)
 const ROOM_TYPE_START := "start"
@@ -58,6 +60,8 @@ var room_enemies_remaining: Array[int] = []
 var spawned_rooms: Dictionary = {}
 var rewarded_rooms: Dictionary = {}
 var special_rewarded_rooms: Dictionary = {}
+var available_relic_ids: Array[String] = []
+var spawned_relic_ids: Array[String] = []
 var door_entries: Array[Dictionary] = []
 var current_room_index: int = 0
 var final_room_index: int = -1
@@ -77,6 +81,7 @@ var is_transitioning: bool = false
 @onready var doors: Node2D = $GeneratedMap/Doors
 @onready var enemies: Node2D = $Enemies
 @onready var pickups: Node2D = $Pickups
+@onready var relics: Node2D = $Relics
 @onready var exits: Node2D = $Exits
 @onready var player: CharacterBody2D = $Player
 @onready var camera: Camera2D = $Player/Camera2D
@@ -94,6 +99,7 @@ var is_transitioning: bool = false
 
 func _ready() -> void:
 	hud.bind_health(player.health_component)
+	hud.bind_relics(player.relic_component)
 	_configure_seed()
 	_configure_tilemaps()
 	_generate_floor()
@@ -187,6 +193,8 @@ func _generate_floor() -> void:
 	spawned_rooms.clear()
 	rewarded_rooms.clear()
 	special_rewarded_rooms.clear()
+	available_relic_ids = RELIC_CATALOG.get_all_ids()
+	spawned_relic_ids.clear()
 	final_room_index = -1
 	special_room_index = -1
 	floor_is_cleared = false
@@ -1000,6 +1008,37 @@ func _spawn_special_room_reward(room_index: int) -> void:
 	pickup.global_position = (
 		_actor_position_for_cell(reward_cell) + Vector2(0.0, 50.0)
 	)
+
+	var relic_id := _take_random_relic_id()
+	if relic_id.is_empty():
+		return
+
+	var relic_cell := _find_safe_cell(
+		room_index,
+		_room_center_cell(room_index) + Vector2i(3, 0),
+		{reward_cell: true}
+	)
+	var relic := RELIC_PICKUP_SCENE.instantiate() as Area2D
+	relic.call("configure", relic_id)
+	relics.add_child(relic)
+	relic.global_position = (
+		_actor_position_for_cell(relic_cell) + Vector2(0.0, 50.0)
+	)
+
+
+func _take_random_relic_id() -> String:
+	var candidates: Array[String] = []
+	for relic_id in available_relic_ids:
+		if not player.relic_component.has_relic(relic_id):
+			candidates.append(relic_id)
+
+	if candidates.is_empty():
+		return ""
+
+	var relic_id := candidates[rng.randi_range(0, candidates.size() - 1)]
+	available_relic_ids.erase(relic_id)
+	spawned_relic_ids.append(relic_id)
+	return relic_id
 
 
 func _on_enemy_died(room_index: int, defeated_enemy: Node2D) -> void:

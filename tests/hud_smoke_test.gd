@@ -26,10 +26,14 @@ func _run() -> void:
 		"UI/HealthPanel/InvulnerabilityLabel"
 	) as Label
 	var death_overlay := floor_scene.get_node("UI/DeathOverlay") as ColorRect
+	var relic_list := floor_scene.get_node(
+		"UI/RelicPanel/RelicListLabel"
+	) as Label
 
 	_expect(health_bar.max_value == 5.0, "health bar maximum should match player")
 	_expect(health_bar.value == 5.0, "health bar should start full")
 	_expect(health_label.text == "5 / 5", "health text should show initial value")
+	_expect(relic_list.text == "Nenhuma", "relic HUD should start empty")
 
 	health.take_damage(1)
 	await process_frame

@@ -63,6 +63,10 @@ func _run() -> void:
 		floor_scene.get_node("Pickups").get_child_count() == 1,
 		"special room should provide a guaranteed health reward"
 	)
+	_expect(
+		floor_scene.get_node("Relics").get_child_count() == 1,
+		"special room should provide one relic pedestal"
+	)
 
 	floor_scene.call("_complete_floor")
 	_expect(

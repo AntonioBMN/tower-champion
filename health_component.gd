@@ -54,6 +54,16 @@ func heal(amount: int) -> bool:
 	return true
 
 
+func increase_max_health(amount: int, heal_amount: int = 0) -> bool:
+	if amount <= 0 or is_dead:
+		return false
+
+	max_health += amount
+	current_health = mini(current_health + maxi(heal_amount, 0), max_health)
+	health_changed.emit(current_health, max_health)
+	return true
+
+
 func reset_health() -> void:
 	current_health = max_health
 	is_dead = false

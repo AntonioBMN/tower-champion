@@ -49,6 +49,8 @@ z_index = 2
 
 [node name="Pickups" type="Node2D" parent="."]
 
+[node name="Relics" type="Node2D" parent="."]
+
 [node name="Exits" type="Node2D" parent="."]
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
@@ -227,6 +229,46 @@ theme_override_colors/font_color = Color(1, 0.32, 0.28, 1)
 theme_override_font_sizes/font_size = 19
 text = "-1"
 horizontal_alignment = 2
+
+[node name="RelicPanel" type="ColorRect" parent="UI"]
+offset_left = 12.0
+offset_top = 120.0
+offset_right = 372.0
+offset_bottom = 236.0
+color = Color(0.05, 0.06, 0.09, 0.86)
+mouse_filter = 2
+
+[node name="TitleLabel" type="Label" parent="UI/RelicPanel"]
+offset_left = 16.0
+offset_top = 8.0
+offset_right = 190.0
+offset_bottom = 32.0
+theme_override_colors/font_color = Color(0.86, 0.65, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "RELIQUIAS DA RUN"
+
+[node name="RelicListLabel" type="Label" parent="UI/RelicPanel"]
+offset_left = 16.0
+offset_top = 38.0
+offset_right = 344.0
+offset_bottom = 106.0
+theme_override_colors/font_color = Color(0.8, 0.82, 0.88, 1)
+theme_override_font_sizes/font_size = 14
+text = "Nenhuma"
+
+[node name="RelicNotice" type="Label" parent="UI"]
+visible = false
+offset_left = 326.0
+offset_top = 118.0
+offset_right = 826.0
+offset_bottom = 164.0
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.95)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 3
+theme_override_font_sizes/font_size = 24
+text = "RELIQUIA OBTIDA"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="ControlsPanel" type="ColorRect" parent="UI"]
 offset_left = 12.0

@@ -10,8 +10,13 @@ const FLOOR_TEXTURE: Texture2D = preload(
 const ENEMY_SCENE: PackedScene = preload("res://enemy.tscn")
 const RANGED_ENEMY_SCENE: PackedScene = preload("res://ranged_enemy.tscn")
 const HEALTH_PICKUP_SCENE: PackedScene = preload("res://health_pickup.tscn")
+const FLOOR_EXIT_SCENE: PackedScene = preload("res://floor_exit.tscn")
 const DOOR_LOCKED_COLOR := Color(0.75, 0.16, 0.12, 0.95)
 const DOOR_OPEN_COLOR := Color(0.95, 0.67, 0.2, 0.95)
+const ROOM_TYPE_START := "start"
+const ROOM_TYPE_NORMAL := "normal"
+const ROOM_TYPE_SPECIAL := "special"
+const ROOM_TYPE_FINAL := "final"
 
 @export_group("Generation")
 @export var randomize_layout: bool = true
@@ -33,16 +38,25 @@ var room_bounds: Array[Rect2i] = []
 var room_cells: Array = []
 var room_connections: Array = []
 var room_door_cells: Array = []
+var room_types: Array[String] = []
+var room_distances: Array[int] = []
 var open_edges: Dictionary = {}
 var obstacle_rects: Array[Rect2i] = []
 var enemy_spawn_cells: Array = []
 var room_enemies_remaining: Array[int] = []
 var spawned_rooms: Dictionary = {}
 var rewarded_rooms: Dictionary = {}
+var special_rewarded_rooms: Dictionary = {}
 var door_entries: Array[Dictionary] = []
 var current_room_index: int = 0
+var final_room_index: int = -1
+var special_room_index: int = -1
 var remaining_enemies: int = 0
 var floor_is_cleared: bool = false
+var exit_is_available: bool = false
+var run_is_complete: bool = false
+var floor_exit: Area2D
+var floor_exit_cell: Vector2i
 var is_transitioning: bool = false
 
 @onready var floor_tiles: TileMapLayer = $GeneratedMap/FloorTiles
@@ -52,6 +66,7 @@ var is_transitioning: bool = false
 @onready var doors: Node2D = $GeneratedMap/Doors
 @onready var enemies: Node2D = $Enemies
 @onready var pickups: Node2D = $Pickups
+@onready var exits: Node2D = $Exits
 @onready var player: CharacterBody2D = $Player
 @onready var camera: Camera2D = $Player/Camera2D
 @onready var hud = $UI
@@ -60,6 +75,8 @@ var is_transitioning: bool = false
 @onready var seed_label: Label = $UI/SeedLabel
 @onready var floor_cleared_label: Label = $UI/FloorClearedLabel
 @onready var transition_fade: ColorRect = $UI/TransitionFade
+@onready var victory_overlay: ColorRect = $UI/VictoryOverlay
+@onready var victory_details: Label = $UI/VictoryOverlay/VictoryDetails
 @onready var minimap = $UI/MinimapPanel/Minimap
 
 
@@ -74,6 +91,7 @@ func _ready() -> void:
 		room_bounds,
 		room_cells,
 		room_door_cells,
+		room_types,
 		obstacle_rects,
 		player,
 		enemies,
@@ -89,6 +107,7 @@ func _ready() -> void:
 	_update_enemy_counter()
 
 	transition_fade.hide()
+	victory_overlay.hide()
 	floor_cleared_label.hide()
 	seed_label.text = "Andar 1  •  Seed: " + str(generation_seed)
 	_spawn_room_enemies(0)
@@ -96,7 +115,10 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("restart_scene") and not is_transitioning:
+	if (
+		event.is_action_pressed("restart_scene")
+		and (not is_transitioning or run_is_complete)
+	):
 		get_viewport().set_input_as_handled()
 		get_tree().reload_current_scene()
 
@@ -138,18 +160,27 @@ func _generate_floor() -> void:
 	room_cells.clear()
 	room_connections.clear()
 	room_door_cells.clear()
+	room_types.clear()
+	room_distances.clear()
 	open_edges.clear()
 	obstacle_rects.clear()
 	enemy_spawn_cells.clear()
 	room_enemies_remaining.clear()
 	spawned_rooms.clear()
 	rewarded_rooms.clear()
+	special_rewarded_rooms.clear()
+	final_room_index = -1
+	special_room_index = -1
+	floor_is_cleared = false
+	exit_is_available = false
+	run_is_complete = false
 
 	var minimum := mini(minimum_rooms, maximum_rooms)
 	var maximum := maxi(minimum_rooms, maximum_rooms)
 	generated_room_count = rng.randi_range(minimum, maximum)
 
 	_generate_room_graph()
+	_assign_room_roles()
 	_generate_room_shapes()
 	_configure_room_doors()
 	_generate_obstacles()
@@ -202,6 +233,60 @@ func _generate_room_graph() -> void:
 				var neighbor_index: int = occupied[neighbor_position]
 				room_connections[room_index][direction] = neighbor_index
 				room_connections[neighbor_index][-direction] = room_index
+
+
+func _assign_room_roles() -> void:
+	room_types.resize(generated_room_count)
+	room_types.fill(ROOM_TYPE_NORMAL)
+	room_types[0] = ROOM_TYPE_START
+
+	room_distances.resize(generated_room_count)
+	room_distances.fill(-1)
+	room_distances[0] = 0
+	var pending: Array[int] = [0]
+	var pending_index := 0
+
+	while pending_index < pending.size():
+		var room_index := pending[pending_index]
+		pending_index += 1
+
+		for destination in room_connections[room_index].values():
+			if room_distances[destination] >= 0:
+				continue
+
+			room_distances[destination] = room_distances[room_index] + 1
+			pending.append(destination)
+
+	final_room_index = 1
+	for room_index in range(2, generated_room_count):
+		if room_distances[room_index] > room_distances[final_room_index]:
+			final_room_index = room_index
+		elif (
+			room_distances[room_index] == room_distances[final_room_index]
+			and room_connections[room_index].size()
+			< room_connections[final_room_index].size()
+		):
+			final_room_index = room_index
+
+	room_types[final_room_index] = ROOM_TYPE_FINAL
+
+	var special_candidates: Array[int] = []
+	for room_index in range(1, generated_room_count):
+		if room_index == final_room_index:
+			continue
+
+		if room_connections[room_index].size() == 1:
+			special_candidates.append(room_index)
+
+	if special_candidates.is_empty():
+		for room_index in range(1, generated_room_count):
+			if room_index != final_room_index:
+				special_candidates.append(room_index)
+
+	special_room_index = special_candidates[
+		rng.randi_range(0, special_candidates.size() - 1)
+	]
+	room_types[special_room_index] = ROOM_TYPE_SPECIAL
 
 
 func _free_directions(position: Vector2i, occupied: Dictionary) -> Array[Vector2i]:
@@ -422,7 +507,14 @@ func _prepare_enemy_spawns() -> void:
 	]
 
 	for room_index in range(generated_room_count):
-		var spawn_count := 1 if room_index == 0 else rng.randi_range(1, 2)
+		var spawn_count := 0
+		match room_types[room_index]:
+			ROOM_TYPE_START, ROOM_TYPE_SPECIAL:
+				spawn_count = 0
+			ROOM_TYPE_FINAL:
+				spawn_count = 3
+			_:
+				spawn_count = rng.randi_range(1, 2)
 		var center := _room_center_cell(room_index)
 		var reserved: Dictionary = {}
 		var spawns: Array[Vector2i] = []
@@ -736,13 +828,18 @@ func _spawn_room_enemies(room_index: int) -> void:
 		return
 
 	spawned_rooms[room_index] = true
+	if room_types[room_index] == ROOM_TYPE_SPECIAL:
+		_spawn_special_room_reward(room_index)
+		return
 
 	for spawn_index in range(enemy_spawn_cells[room_index].size()):
 		var spawn_cell: Vector2i = enemy_spawn_cells[room_index][spawn_index]
 		var use_ranged_enemy := (
-			room_index > 0
-			and room_index % 2 == 1
-			and spawn_index == 0
+			spawn_index == 0
+			and (
+				room_types[room_index] == ROOM_TYPE_FINAL
+				or (room_index > 0 and room_index % 2 == 1)
+			)
 		)
 		var enemy_scene := (
 			RANGED_ENEMY_SCENE if use_ranged_enemy else ENEMY_SCENE
@@ -752,6 +849,23 @@ func _spawn_room_enemies(room_index: int) -> void:
 		enemy.set_meta("room_index", room_index)
 		enemy.global_position = _actor_position_for_cell(spawn_cell)
 		enemy.connect("died", _on_enemy_died.bind(room_index, enemy))
+
+
+func _spawn_special_room_reward(room_index: int) -> void:
+	if special_rewarded_rooms.has(room_index):
+		return
+
+	special_rewarded_rooms[room_index] = true
+	var reward_cell := _find_safe_cell(
+		room_index,
+		_room_center_cell(room_index)
+	)
+	var pickup := HEALTH_PICKUP_SCENE.instantiate() as Area2D
+	pickup.set("heal_amount", health_pickup_amount)
+	pickups.add_child(pickup)
+	pickup.global_position = (
+		_actor_position_for_cell(reward_cell) + Vector2(0.0, 50.0)
+	)
 
 
 func _on_enemy_died(room_index: int, defeated_enemy: Node2D) -> void:
@@ -797,30 +911,108 @@ func _update_enemy_counter() -> void:
 
 func _update_room_ui() -> void:
 	var room_enemy_count := room_enemies_remaining[current_room_index]
-	var status := (
-		"Portas bloqueadas • %d inimigo(s)" % room_enemy_count
-		if room_enemy_count > 0
-		else "Sala limpa • portas abertas"
+	var room_type_name := _room_type_display_name(
+		room_types[current_room_index]
 	)
-	room_label.text = "Sala %d / %d  •  %s" % [
+	var status := (
+		"%d inimigo(s)" % room_enemy_count
+		if room_enemy_count > 0
+		else (
+			"Saida aberta"
+			if exit_is_available and current_room_index == final_room_index
+			else "Limpa"
+		)
+	)
+	room_label.text = "%s • %d/%d • %s" % [
+		room_type_name,
 		current_room_index + 1,
 		generated_room_count,
 		status,
 	]
 
 
+func _room_type_display_name(room_type: String) -> String:
+	match room_type:
+		ROOM_TYPE_START:
+			return "INICIO"
+		ROOM_TYPE_SPECIAL:
+			return "SANTUARIO"
+		ROOM_TYPE_FINAL:
+			return "SALA FINAL"
+		_:
+			return "COMBATE"
+
+
 func _complete_floor() -> void:
-	if floor_is_cleared:
+	if (
+		floor_is_cleared
+		or remaining_enemies > 0
+		or final_room_index < 0
+		or room_enemies_remaining[final_room_index] > 0
+	):
 		return
 
 	floor_is_cleared = true
+	_spawn_floor_exit()
 	floor_cleared_label.modulate = Color(1.0, 1.0, 1.0, 0.0)
+	floor_cleared_label.text = "SAIDA LIBERADA NA SALA FINAL!"
 	floor_cleared_label.show()
 
 	var tween := create_tween()
 	tween.tween_property(floor_cleared_label, "modulate:a", 1.0, 0.3)
 	tween.tween_interval(2.0)
 	tween.tween_property(floor_cleared_label, "modulate:a", 0.0, 0.5)
+
+
+func _spawn_floor_exit() -> void:
+	if exit_is_available or is_instance_valid(floor_exit):
+		return
+
+	floor_exit_cell = _find_safe_cell(
+		final_room_index,
+		_room_center_cell(final_room_index) + Vector2i(0, 4)
+	)
+	floor_exit = FLOOR_EXIT_SCENE.instantiate() as Area2D
+	exits.add_child(floor_exit)
+	floor_exit.global_position = (
+		Vector2(floor_exit_cell * CELL_SIZE)
+		+ Vector2(CELL_SIZE * 0.5, CELL_SIZE * 0.5)
+	)
+	floor_exit.connect("entered", _on_floor_exit_entered)
+	exit_is_available = true
+	minimap.set_exit_available(final_room_index, true)
+	_update_room_ui()
+
+
+func _on_floor_exit_entered(body: Node2D) -> void:
+	if (
+		body != player
+		or not exit_is_available
+		or run_is_complete
+		or remaining_enemies > 0
+		or current_room_index != final_room_index
+	):
+		return
+
+	_finish_run()
+
+
+func _finish_run() -> void:
+	run_is_complete = true
+	is_transitioning = true
+	player.velocity = Vector2.ZERO
+	player.set_physics_process(false)
+	victory_details.text = (
+		"Seed %d  -  %d salas exploradas" % [
+			generation_seed,
+			generated_room_count,
+		]
+	)
+	victory_overlay.modulate.a = 0.0
+	victory_overlay.show()
+
+	var tween := create_tween()
+	tween.tween_property(victory_overlay, "modulate:a", 1.0, 0.35)
 
 
 func _validate_floor() -> void:
@@ -843,13 +1035,26 @@ func _validate_floor() -> void:
 	if graph_visited.size() != generated_room_count:
 		push_error("O grafo do andar possui salas desconectadas.")
 
+	if final_room_index <= 0:
+		push_error("A sala final deve ser diferente da sala inicial.")
+	elif room_distances[final_room_index] != room_distances.max():
+		push_error("A sala final deve estar na maior distancia da inicial.")
+
+	if (
+		special_room_index <= 0
+		or special_room_index == final_room_index
+	):
+		push_error("O andar deve possuir uma sala especial distinta.")
+
 	for room_index in range(generated_room_count):
 		_validate_room_navigation(room_index)
 
 	print(
 		"Andar 1 gerado | seed=", generation_seed,
 		" | salas=", generated_room_count,
-		" | conexões=", _connection_count()
+		" | conexões=", _connection_count(),
+		" | final=", final_room_index + 1,
+		" | distancia=", room_distances[final_room_index]
 	)
 
 

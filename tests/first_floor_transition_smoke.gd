@@ -50,8 +50,8 @@ func _run() -> void:
 		"cross-shaped room should preserve its cutouts"
 	)
 	_expect(
-		minimap.call("get_visible_enemy_marker_count") == 1,
-		"minimap should show the starting room enemy marker"
+		minimap.call("get_visible_enemy_marker_count") == 0,
+		"starting room should be safe and have no enemy markers"
 	)
 	_expect(
 		minimap.call("get_current_room_obstacle_marker_count") >= 1,
@@ -62,7 +62,8 @@ func _run() -> void:
 		== initial_connections[0].size(),
 		"minimap should show every door in the starting room"
 	)
-	floor_scene.call("_spawn_room_enemies", 1)
+	var ranged_test_room: int = floor_scene.get("final_room_index")
+	floor_scene.call("_spawn_room_enemies", ranged_test_room)
 
 	var has_ranged_enemy := false
 
@@ -76,7 +77,7 @@ func _run() -> void:
 			has_ranged_enemy = true
 			break
 
-	_expect(has_ranged_enemy, "second room should introduce a ranged enemy")
+	_expect(has_ranged_enemy, "final room should include a ranged enemy")
 
 	var connections: Array = floor_scene.get("room_connections")
 	var first_room_connections: Dictionary = connections[0]
@@ -94,17 +95,8 @@ func _run() -> void:
 
 		_expect(
 			is_instance_valid(first_door_collision)
-			and not first_door_collision.disabled,
-			"doors should start locked while enemies are alive"
-		)
-
-		var room_enemy_counts: Array = floor_scene.get("room_enemies_remaining")
-		room_enemy_counts[0] = 0
-		floor_scene.call("_refresh_room_doors", 0)
-		await physics_frame
-		_expect(
-			first_door_collision.disabled,
-			"doors should open when the room is clear"
+			and first_door_collision.disabled,
+			"starting room doors should be open because it is safe"
 		)
 
 		var player := floor_scene.get_node("Player") as CharacterBody2D

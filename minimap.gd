@@ -13,18 +13,27 @@ const PLAYER_MARKER_COLOR := Color(0.2, 0.95, 0.72, 1.0)
 const ENEMY_MARKER_COLOR := Color(0.95, 0.18, 0.16, 1.0)
 const OBSTACLE_MARKER_COLOR := Color(0.64, 0.66, 0.7, 1.0)
 const MARKER_BORDER_COLOR := Color(0.08, 0.09, 0.12, 0.95)
+const FINAL_ROOM_COLOR := Color(0.52, 0.16, 0.18, 1.0)
+const SPECIAL_ROOM_COLOR := Color(0.27, 0.2, 0.5, 1.0)
+const START_MARKER_COLOR := Color(0.3, 0.72, 1.0, 1.0)
+const FINAL_MARKER_COLOR := Color(1.0, 0.28, 0.24, 1.0)
+const SPECIAL_MARKER_COLOR := Color(0.76, 0.5, 1.0, 1.0)
+const EXIT_MARKER_COLOR := Color(0.28, 1.0, 0.7, 1.0)
 
 var room_positions: Array[Vector2i] = []
 var room_connections: Array = []
 var room_bounds: Array[Rect2i] = []
 var room_cells: Array = []
 var room_door_cells: Array = []
+var room_types: Array[String] = []
 var obstacle_rects: Array[Rect2i] = []
 var tracked_player: Node2D
 var tracked_enemies: Node
 var world_cell_size: float = 1.0
 var visited_rooms: Dictionary = {}
 var current_room_index: int = -1
+var exit_room_index: int = -1
+var exit_available: bool = false
 var marker_refresh_elapsed: float = 0.0
 
 
@@ -34,6 +43,7 @@ func configure(
 	bounds: Array[Rect2i],
 	cells: Array,
 	door_cells: Array,
+	types: Array[String],
 	obstacles_value: Array[Rect2i],
 	player_value: Node2D,
 	enemies_value: Node,
@@ -44,12 +54,15 @@ func configure(
 	room_bounds.assign(bounds)
 	room_cells = cells.duplicate(true)
 	room_door_cells = door_cells.duplicate(true)
+	room_types.assign(types)
 	obstacle_rects.assign(obstacles_value)
 	tracked_player = player_value
 	tracked_enemies = enemies_value
 	world_cell_size = maxf(world_cell_size_value, 1.0)
 	visited_rooms.clear()
 	current_room_index = -1
+	exit_room_index = -1
+	exit_available = false
 	queue_redraw()
 
 
@@ -94,14 +107,11 @@ func _draw() -> void:
 
 	for room_index in visited_rooms:
 		var center := _room_draw_position(room_index, map_origin, draw_scale)
-		var room_color := (
-			CURRENT_ROOM_COLOR
-			if room_index == current_room_index
-			else VISITED_ROOM_COLOR
-		)
+		var room_color := _room_color(room_index)
 
 		_draw_room_shape(room_index, center, draw_scale, room_color)
 		_draw_room_doors(room_index, center, draw_scale)
+		_draw_room_role_marker(room_index, center, draw_scale)
 
 	var current_room_center := _room_draw_position(
 		current_room_index,
@@ -109,6 +119,79 @@ func _draw() -> void:
 		draw_scale
 	)
 	_draw_current_room_markers(current_room_center, draw_scale)
+
+
+func _room_color(room_index: int) -> Color:
+	if room_index == current_room_index:
+		return CURRENT_ROOM_COLOR
+
+	match room_types[room_index]:
+		"final":
+			return FINAL_ROOM_COLOR
+		"special":
+			return SPECIAL_ROOM_COLOR
+		_:
+			return VISITED_ROOM_COLOR
+
+
+func _draw_room_role_marker(
+	room_index: int,
+	room_center: Vector2,
+	draw_scale: float
+) -> void:
+	if exit_available and room_index == exit_room_index:
+		draw_circle(
+			room_center,
+			maxf(4.0, 5.0 * draw_scale),
+			MARKER_BORDER_COLOR
+		)
+		draw_arc(
+			room_center,
+			maxf(3.0, 4.0 * draw_scale),
+			0.0,
+			TAU,
+			20,
+			EXIT_MARKER_COLOR,
+			2.0,
+			true
+		)
+		return
+
+	match room_types[room_index]:
+		"start":
+			draw_circle(
+				room_center,
+				maxf(2.0, 2.5 * draw_scale),
+				START_MARKER_COLOR
+			)
+		"special":
+			var marker_size := maxf(4.0, 5.0 * draw_scale)
+			draw_line(
+				room_center - Vector2(marker_size, 0.0),
+				room_center + Vector2(marker_size, 0.0),
+				SPECIAL_MARKER_COLOR,
+				2.0
+			)
+			draw_line(
+				room_center - Vector2(0.0, marker_size),
+				room_center + Vector2(0.0, marker_size),
+				SPECIAL_MARKER_COLOR,
+				2.0
+			)
+		"final":
+			var marker_size := maxf(4.0, 5.0 * draw_scale)
+			draw_colored_polygon(PackedVector2Array([
+				room_center + Vector2(0.0, -marker_size),
+				room_center + Vector2(marker_size, 0.0),
+				room_center + Vector2(0.0, marker_size),
+				room_center + Vector2(-marker_size, 0.0),
+			]), FINAL_MARKER_COLOR)
+
+
+func set_exit_available(room_index: int, available: bool) -> void:
+	exit_room_index = room_index
+	exit_available = available
+	queue_redraw()
 
 
 func _calculate_draw_scale() -> float:
@@ -383,6 +466,21 @@ func get_room_shape_cell_count(room_index: int) -> int:
 		return 0
 
 	return room_cells[room_index].size()
+
+
+func get_room_type(room_index: int) -> String:
+	if room_index < 0 or room_index >= room_types.size():
+		return ""
+
+	return room_types[room_index]
+
+
+func is_exit_marker_visible() -> bool:
+	return (
+		exit_available
+		and exit_room_index >= 0
+		and visited_rooms.has(exit_room_index)
+	)
 
 
 func get_visible_enemy_marker_count() -> int:

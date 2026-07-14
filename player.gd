@@ -36,6 +36,7 @@ var received_knockback_velocity: Vector2 = Vector2.ZERO
 @onready var attack_cooldown: Timer = $AttackCooldown
 @onready var health_component: HealthComponent = $HealthComponent
 @onready var relic_component: RelicComponent = $RelicComponent
+@onready var run_inventory: RunInventory = $RunInventory
 @onready var swing_audio: AudioStreamPlayer2D = $SwingAudio
 @onready var hit_audio: AudioStreamPlayer2D = $HitAudio
 
@@ -319,6 +320,18 @@ func apply_knockback(impulse: Vector2) -> void:
 
 func collect_relic(relic_id: String) -> bool:
 	return relic_component.collect_relic(relic_id)
+
+
+func add_keys(amount: int = 1) -> bool:
+	return run_inventory.add_keys(amount)
+
+
+func spend_key() -> bool:
+	return run_inventory.spend_key()
+
+
+func get_key_count() -> int:
+	return run_inventory.keys
 
 
 func apply_relic_effects(effects: Dictionary) -> void:

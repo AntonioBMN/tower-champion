@@ -1,0 +1,30 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://treasure_chest.gd" id="1_chest"]
+
+[sub_resource type="RectangleShape2D" id="Rectangle_chest"]
+size = Vector2(70, 62)
+
+[node name="TreasureChest" type="Area2D"]
+z_index = 3
+collision_layer = 0
+collision_mask = 1
+monitorable = false
+script = ExtResource("1_chest")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, 2)
+shape = SubResource("Rectangle_chest")
+
+[node name="PromptLabel" type="Label" parent="."]
+offset_left = -90.0
+offset_top = -62.0
+offset_right = 90.0
+offset_bottom = -36.0
+theme_override_colors/font_color = Color(1, 0.82, 0.42, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.95)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 15
+text = "BAU: 1 CHAVE"
+horizontal_alignment = 1

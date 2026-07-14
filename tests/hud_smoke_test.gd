@@ -29,11 +29,15 @@ func _run() -> void:
 	var relic_list := floor_scene.get_node(
 		"UI/RelicPanel/RelicListLabel"
 	) as Label
+	var key_label := floor_scene.get_node("UI/HealthPanel/KeyLabel") as Label
 
 	_expect(health_bar.max_value == 5.0, "health bar maximum should match player")
 	_expect(health_bar.value == 5.0, "health bar should start full")
 	_expect(health_label.text == "5 / 5", "health text should show initial value")
 	_expect(relic_list.text == "Nenhuma", "relic HUD should start empty")
+	_expect(key_label.text == "CHAVES: 0", "key HUD should start at zero")
+	player.call("add_keys", 2)
+	_expect(key_label.text == "CHAVES: 2", "key HUD should follow inventory")
 
 	health.take_damage(1)
 	await process_frame

@@ -15,9 +15,11 @@ const OBSTACLE_MARKER_COLOR := Color(0.64, 0.66, 0.7, 1.0)
 const MARKER_BORDER_COLOR := Color(0.08, 0.09, 0.12, 0.95)
 const FINAL_ROOM_COLOR := Color(0.52, 0.16, 0.18, 1.0)
 const SPECIAL_ROOM_COLOR := Color(0.27, 0.2, 0.5, 1.0)
+const TREASURE_ROOM_COLOR := Color(0.42, 0.3, 0.08, 1.0)
 const START_MARKER_COLOR := Color(0.3, 0.72, 1.0, 1.0)
 const FINAL_MARKER_COLOR := Color(1.0, 0.28, 0.24, 1.0)
 const SPECIAL_MARKER_COLOR := Color(0.76, 0.5, 1.0, 1.0)
+const TREASURE_MARKER_COLOR := Color(1.0, 0.76, 0.2, 1.0)
 const EXIT_MARKER_COLOR := Color(0.28, 1.0, 0.7, 1.0)
 
 var room_positions: Array[Vector2i] = []
@@ -130,6 +132,8 @@ func _room_color(room_index: int) -> Color:
 			return FINAL_ROOM_COLOR
 		"special":
 			return SPECIAL_ROOM_COLOR
+		"treasure":
+			return TREASURE_ROOM_COLOR
 		_:
 			return VISITED_ROOM_COLOR
 
@@ -176,6 +180,23 @@ func _draw_room_role_marker(
 				room_center - Vector2(0.0, marker_size),
 				room_center + Vector2(0.0, marker_size),
 				SPECIAL_MARKER_COLOR,
+				2.0
+			)
+		"treasure":
+			var marker_size := maxf(5.0, 6.0 * draw_scale)
+			draw_rect(
+				Rect2(
+					room_center - Vector2(marker_size, marker_size * 0.65),
+					Vector2(marker_size * 2.0, marker_size * 1.3)
+				),
+				TREASURE_MARKER_COLOR,
+				false,
+				2.0
+			)
+			draw_line(
+				room_center - Vector2(0.0, marker_size * 0.65),
+				room_center + Vector2(0.0, marker_size * 0.65),
+				TREASURE_MARKER_COLOR,
 				2.0
 			)
 		"final":

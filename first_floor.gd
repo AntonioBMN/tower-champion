@@ -11,6 +11,8 @@ const ENEMY_SCENE: PackedScene = preload("res://enemy.tscn")
 const RANGED_ENEMY_SCENE: PackedScene = preload("res://ranged_enemy.tscn")
 const HEALTH_PICKUP_SCENE: PackedScene = preload("res://health_pickup.tscn")
 const RELIC_PICKUP_SCENE: PackedScene = preload("res://relic_pickup.tscn")
+const KEY_PICKUP_SCENE: PackedScene = preload("res://key_pickup.tscn")
+const TREASURE_CHEST_SCENE: PackedScene = preload("res://treasure_chest.tscn")
 const FLOOR_EXIT_SCENE: PackedScene = preload("res://floor_exit.tscn")
 const COMBAT_FEEDBACK = preload("res://combat_feedback.gd")
 const RELIC_CATALOG = preload("res://relic_catalog.gd")
@@ -19,6 +21,7 @@ const DOOR_OPEN_COLOR := Color(0.95, 0.67, 0.2, 0.95)
 const ROOM_TYPE_START := "start"
 const ROOM_TYPE_NORMAL := "normal"
 const ROOM_TYPE_SPECIAL := "special"
+const ROOM_TYPE_TREASURE := "treasure"
 const ROOM_TYPE_FINAL := "final"
 const ENEMY_TYPE_MELEE := "melee"
 const ENEMY_TYPE_RANGED := "ranged"
@@ -32,6 +35,8 @@ const ENEMY_TYPE_RANGED := "ranged"
 @export_group("Room Rewards")
 @export_range(0.0, 1.0, 0.05) var health_drop_chance: float = 0.35
 @export_range(1, 10, 1) var health_pickup_amount: int = 1
+@export_range(0.0, 1.0, 0.05) var key_drop_chance: float = 0.3
+@export_range(1, 10, 1) var key_pickup_amount: int = 1
 
 @export_group("Encounter Waves")
 @export_range(0.05, 2.0, 0.05) var wave_spawn_delay: float = 0.55
@@ -66,6 +71,8 @@ var door_entries: Array[Dictionary] = []
 var current_room_index: int = 0
 var final_room_index: int = -1
 var special_room_index: int = -1
+var treasure_room_index: int = -1
+var keys_spawned: int = 0
 var remaining_enemies: int = 0
 var floor_is_cleared: bool = false
 var exit_is_available: bool = false
@@ -82,6 +89,8 @@ var is_transitioning: bool = false
 @onready var enemies: Node2D = $Enemies
 @onready var pickups: Node2D = $Pickups
 @onready var relics: Node2D = $Relics
+@onready var keys: Node2D = $Keys
+@onready var chests: Node2D = $Chests
 @onready var exits: Node2D = $Exits
 @onready var player: CharacterBody2D = $Player
 @onready var camera: Camera2D = $Player/Camera2D
@@ -100,6 +109,7 @@ var is_transitioning: bool = false
 func _ready() -> void:
 	hud.bind_health(player.health_component)
 	hud.bind_relics(player.relic_component)
+	hud.bind_inventory(player.run_inventory)
 	_configure_seed()
 	_configure_tilemaps()
 	_generate_floor()
@@ -197,6 +207,8 @@ func _generate_floor() -> void:
 	spawned_relic_ids.clear()
 	final_room_index = -1
 	special_room_index = -1
+	treasure_room_index = -1
+	keys_spawned = 0
 	floor_is_cleared = false
 	exit_is_available = false
 	run_is_complete = false
@@ -313,6 +325,23 @@ func _assign_room_roles() -> void:
 		rng.randi_range(0, special_candidates.size() - 1)
 	]
 	room_types[special_room_index] = ROOM_TYPE_SPECIAL
+
+	var treasure_candidates: Array[int] = []
+	for room_index in range(1, generated_room_count):
+		if room_index in [final_room_index, special_room_index]:
+			continue
+		if room_connections[room_index].size() == 1:
+			treasure_candidates.append(room_index)
+
+	if treasure_candidates.is_empty():
+		for room_index in range(1, generated_room_count):
+			if room_index not in [final_room_index, special_room_index]:
+				treasure_candidates.append(room_index)
+
+	treasure_room_index = treasure_candidates[
+		rng.randi_range(0, treasure_candidates.size() - 1)
+	]
+	room_types[treasure_room_index] = ROOM_TYPE_TREASURE
 
 
 func _free_directions(position: Vector2i, occupied: Dictionary) -> Array[Vector2i]:
@@ -567,7 +596,9 @@ func _prepare_enemy_spawns() -> void:
 
 
 func _build_room_encounter(room_index: int) -> Array:
-	if room_types[room_index] in [ROOM_TYPE_START, ROOM_TYPE_SPECIAL]:
+	if room_types[room_index] in [
+		ROOM_TYPE_START, ROOM_TYPE_SPECIAL, ROOM_TYPE_TREASURE
+	]:
 		return []
 
 	if room_types[room_index] == ROOM_TYPE_FINAL:
@@ -906,6 +937,9 @@ func _spawn_room_enemies(room_index: int) -> void:
 	if room_types[room_index] == ROOM_TYPE_SPECIAL:
 		_spawn_special_room_reward(room_index)
 		return
+	if room_types[room_index] == ROOM_TYPE_TREASURE:
+		_spawn_treasure_room_chest(room_index)
+		return
 
 	if room_encounter_waves[room_index].is_empty():
 		room_encounter_complete[room_index] = true
@@ -1041,6 +1075,37 @@ func _take_random_relic_id() -> String:
 	return relic_id
 
 
+func _spawn_treasure_room_chest(room_index: int) -> void:
+	if special_rewarded_rooms.has(room_index):
+		return
+
+	special_rewarded_rooms[room_index] = true
+	var chest_cell := _find_safe_cell(
+		room_index, _room_center_cell(room_index)
+	)
+	var chest := TREASURE_CHEST_SCENE.instantiate() as TreasureChest
+	chests.add_child(chest)
+	chest.global_position = (
+		_actor_position_for_cell(chest_cell) + Vector2(0.0, 50.0)
+	)
+	chest.opened.connect(_on_treasure_chest_opened)
+
+
+func _on_treasure_chest_opened(chest: TreasureChest) -> void:
+	var relic_id := _take_random_relic_id()
+	if relic_id.is_empty():
+		var health_reward := HEALTH_PICKUP_SCENE.instantiate() as Area2D
+		health_reward.set("heal_amount", health_pickup_amount)
+		pickups.add_child(health_reward)
+		health_reward.global_position = chest.global_position + Vector2(0.0, 58.0)
+		return
+
+	var relic := RELIC_PICKUP_SCENE.instantiate() as Area2D
+	relic.call("configure", relic_id)
+	relics.add_child(relic)
+	relic.global_position = chest.global_position + Vector2(0.0, 58.0)
+
+
 func _on_enemy_died(room_index: int, defeated_enemy: Node2D) -> void:
 	room_enemies_remaining[room_index] = maxi(
 		room_enemies_remaining[room_index] - 1,
@@ -1078,6 +1143,7 @@ func _try_drop_room_reward(room_index: int, drop_position: Vector2) -> void:
 		return
 
 	rewarded_rooms[room_index] = true
+	_try_drop_key(drop_position + Vector2(-24.0, 0.0))
 
 	if rng.randf() > health_drop_chance:
 		return
@@ -1085,7 +1151,19 @@ func _try_drop_room_reward(room_index: int, drop_position: Vector2) -> void:
 	var pickup := HEALTH_PICKUP_SCENE.instantiate() as Area2D
 	pickup.set("heal_amount", health_pickup_amount)
 	pickups.add_child(pickup)
-	pickup.global_position = drop_position
+	pickup.global_position = drop_position + Vector2(24.0, 0.0)
+
+
+func _try_drop_key(drop_position: Vector2) -> void:
+	var is_guaranteed_first_key := keys_spawned == 0
+	if not is_guaranteed_first_key and rng.randf() > key_drop_chance:
+		return
+
+	var key := KEY_PICKUP_SCENE.instantiate() as Area2D
+	key.set("key_amount", key_pickup_amount)
+	keys.add_child(key)
+	key.global_position = drop_position
+	keys_spawned += key_pickup_amount
 
 
 func _update_enemy_counter() -> void:
@@ -1133,6 +1211,8 @@ func _room_type_display_name(room_type: String) -> String:
 			return "INICIO"
 		ROOM_TYPE_SPECIAL:
 			return "SANTUARIO"
+		ROOM_TYPE_TREASURE:
+			return "TESOURO"
 		ROOM_TYPE_FINAL:
 			return "SALA FINAL"
 		_:
@@ -1241,6 +1321,12 @@ func _validate_floor() -> void:
 		or special_room_index == final_room_index
 	):
 		push_error("O andar deve possuir uma sala especial distinta.")
+
+	if (
+		treasure_room_index <= 0
+		or treasure_room_index in [final_room_index, special_room_index]
+	):
+		push_error("O andar deve possuir uma sala de tesouro distinta.")
 
 	for room_index in range(generated_room_count):
 		_validate_room_navigation(room_index)

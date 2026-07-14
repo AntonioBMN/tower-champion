@@ -5,6 +5,7 @@ const RELIC_CATALOG = preload("res://relic_catalog.gd")
 
 var health_component: HealthComponent
 var relic_component: RelicComponent
+var run_inventory: RunInventory
 var damage_flash_tween: Tween
 var damage_value_tween: Tween
 var relic_notice_tween: Tween
@@ -18,6 +19,7 @@ var damage_value_start_position: Vector2
 @onready var death_overlay: ColorRect = $DeathOverlay
 @onready var relic_list_label: Label = $RelicPanel/RelicListLabel
 @onready var relic_notice: Label = $RelicNotice
+@onready var key_label: Label = $HealthPanel/KeyLabel
 
 
 func _ready() -> void:
@@ -68,6 +70,25 @@ func bind_relics(component: RelicComponent) -> void:
 	relic_component.relics_changed.connect(_on_relics_changed)
 	relic_component.relic_collected.connect(_on_relic_collected)
 	_on_relics_changed(relic_component.collected_ids)
+
+
+func bind_inventory(inventory: RunInventory) -> void:
+	if run_inventory == inventory:
+		return
+
+	if (
+		is_instance_valid(run_inventory)
+		and run_inventory.keys_changed.is_connected(_on_keys_changed)
+	):
+		run_inventory.keys_changed.disconnect(_on_keys_changed)
+
+	run_inventory = inventory
+	run_inventory.keys_changed.connect(_on_keys_changed)
+	_on_keys_changed(run_inventory.keys)
+
+
+func _on_keys_changed(current_keys: int) -> void:
+	key_label.text = "CHAVES: %d" % current_keys
 
 
 func _on_relics_changed(collected_ids: Array[String]) -> void:

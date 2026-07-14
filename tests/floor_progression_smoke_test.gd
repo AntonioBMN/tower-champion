@@ -21,6 +21,7 @@ func _run() -> void:
 	var room_enemy_counts: Array = floor_scene.get("room_enemies_remaining")
 	var final_room_index: int = floor_scene.get("final_room_index")
 	var special_room_index: int = floor_scene.get("special_room_index")
+	var treasure_room_index: int = floor_scene.get("treasure_room_index")
 	var minimap := floor_scene.get_node("UI/MinimapPanel/Minimap")
 
 	_expect(room_types[0] == "start", "first room should be the start room")
@@ -41,9 +42,15 @@ func _run() -> void:
 		"floor should have a distinct special room"
 	)
 	_expect(
+		room_types[treasure_room_index] == "treasure"
+		and treasure_room_index not in [0, special_room_index, final_room_index],
+		"floor should have a distinct treasure room"
+	)
+	_expect(
 		room_enemy_counts[0] == 0
-		and room_enemy_counts[special_room_index] == 0,
-		"start and special rooms should not contain combat"
+		and room_enemy_counts[special_room_index] == 0
+		and room_enemy_counts[treasure_room_index] == 0,
+		"start, sanctuary and treasure rooms should not contain combat"
 	)
 	_expect(
 		floor_scene.get("room_encounter_waves")[final_room_index].size() == 3,
@@ -57,6 +64,10 @@ func _run() -> void:
 		minimap.call("get_room_type", final_room_index) == "final",
 		"minimap should receive the final room role"
 	)
+	_expect(
+		minimap.call("get_room_type", treasure_room_index) == "treasure",
+		"minimap should receive the treasure room role"
+	)
 
 	floor_scene.call("_spawn_room_enemies", special_room_index)
 	_expect(
@@ -66,6 +77,12 @@ func _run() -> void:
 	_expect(
 		floor_scene.get_node("Relics").get_child_count() == 1,
 		"special room should provide one relic pedestal"
+	)
+
+	floor_scene.call("_spawn_room_enemies", treasure_room_index)
+	_expect(
+		floor_scene.get_node("Chests").get_child_count() == 1,
+		"treasure room should provide one locked chest"
 	)
 
 	floor_scene.call("_complete_floor")

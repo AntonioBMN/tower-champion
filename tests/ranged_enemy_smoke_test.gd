@@ -31,6 +31,7 @@ func _run() -> void:
 	var player_health := player.get_node("HealthComponent") as HealthComponent
 	var ranged_health := ranged_enemy.get_node("HealthComponent") as HealthComponent
 	var initial_enemy_position := ranged_enemy.position
+	_expect(ranged_health.max_health == 1, "ranged enemy should have one health")
 
 	await create_timer(1.3).timeout
 	_expect(

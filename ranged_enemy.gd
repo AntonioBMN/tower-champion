@@ -5,6 +5,9 @@ signal died
 
 const PROJECTILE_SCENE: PackedScene = preload("res://enemy_projectile.tscn")
 
+@export_group("Stats")
+@export_range(1, 100, 1) var max_health: int = 1
+
 @export_group("Movement")
 @export_range(10.0, 500.0, 5.0) var move_speed: float = 85.0
 @export_range(80.0, 500.0, 10.0) var retreat_distance: float = 220.0
@@ -29,6 +32,8 @@ var player: Node2D
 func _ready() -> void:
 	player = get_tree().get_first_node_in_group("player") as Node2D
 	shoot_cooldown.wait_time = attack_interval
+	health_component.max_health = max_health
+	health_component.reset_health()
 	health_component.damaged.connect(_on_health_damaged)
 	health_component.died.connect(_on_health_died)
 	animated_sprite.self_modulate = Color(0.58, 0.78, 1.0, 1.0)

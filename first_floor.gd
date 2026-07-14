@@ -9,6 +9,7 @@ const FLOOR_TEXTURE: Texture2D = preload(
 )
 const ENEMY_SCENE: PackedScene = preload("res://enemy.tscn")
 const RANGED_ENEMY_SCENE: PackedScene = preload("res://ranged_enemy.tscn")
+const HEALTH_PICKUP_SCENE: PackedScene = preload("res://health_pickup.tscn")
 const DOOR_LOCKED_COLOR := Color(0.75, 0.16, 0.12, 0.95)
 const DOOR_OPEN_COLOR := Color(0.95, 0.67, 0.2, 0.95)
 
@@ -17,6 +18,10 @@ const DOOR_OPEN_COLOR := Color(0.95, 0.67, 0.2, 0.95)
 @export var fixed_seed: int = 12345
 @export_range(5, 8, 1) var minimum_rooms: int = 5
 @export_range(5, 8, 1) var maximum_rooms: int = 8
+
+@export_group("Room Rewards")
+@export_range(0.0, 1.0, 0.05) var health_drop_chance: float = 0.35
+@export_range(1, 10, 1) var health_pickup_amount: int = 1
 
 var rng := RandomNumberGenerator.new()
 var generation_seed: int
@@ -33,6 +38,7 @@ var obstacle_rects: Array[Rect2i] = []
 var enemy_spawn_cells: Array = []
 var room_enemies_remaining: Array[int] = []
 var spawned_rooms: Dictionary = {}
+var rewarded_rooms: Dictionary = {}
 var door_entries: Array[Dictionary] = []
 var current_room_index: int = 0
 var remaining_enemies: int = 0
@@ -45,6 +51,7 @@ var is_transitioning: bool = false
 @onready var obstacles: StaticBody2D = $GeneratedMap/Obstacles
 @onready var doors: Node2D = $GeneratedMap/Doors
 @onready var enemies: Node2D = $Enemies
+@onready var pickups: Node2D = $Pickups
 @onready var player: CharacterBody2D = $Player
 @onready var camera: Camera2D = $Player/Camera2D
 @onready var hud = $UI
@@ -123,6 +130,7 @@ func _generate_floor() -> void:
 	enemy_spawn_cells.clear()
 	room_enemies_remaining.clear()
 	spawned_rooms.clear()
+	rewarded_rooms.clear()
 
 	var minimum := mini(minimum_rooms, maximum_rooms)
 	var maximum := maxi(minimum_rooms, maximum_rooms)
@@ -728,10 +736,10 @@ func _spawn_room_enemies(room_index: int) -> void:
 		var enemy := enemy_scene.instantiate() as CharacterBody2D
 		enemies.add_child(enemy)
 		enemy.global_position = _actor_position_for_cell(spawn_cell)
-		enemy.connect("died", _on_enemy_died.bind(room_index))
+		enemy.connect("died", _on_enemy_died.bind(room_index, enemy))
 
 
-func _on_enemy_died(room_index: int) -> void:
+func _on_enemy_died(room_index: int, defeated_enemy: Node2D) -> void:
 	room_enemies_remaining[room_index] = maxi(
 		room_enemies_remaining[room_index] - 1,
 		0
@@ -740,6 +748,12 @@ func _on_enemy_died(room_index: int) -> void:
 	_refresh_room_doors(room_index)
 	_update_enemy_counter()
 
+	if room_enemies_remaining[room_index] == 0:
+		_try_drop_room_reward(
+			room_index,
+			defeated_enemy.global_position + Vector2(0.0, 50.0)
+		)
+
 	if room_index == current_room_index:
 		_update_room_ui()
 
@@ -747,8 +761,23 @@ func _on_enemy_died(room_index: int) -> void:
 		_complete_floor()
 
 
+func _try_drop_room_reward(room_index: int, drop_position: Vector2) -> void:
+	if rewarded_rooms.has(room_index):
+		return
+
+	rewarded_rooms[room_index] = true
+
+	if rng.randf() > health_drop_chance:
+		return
+
+	var pickup := HEALTH_PICKUP_SCENE.instantiate() as Area2D
+	pickup.set("heal_amount", health_pickup_amount)
+	pickups.add_child(pickup)
+	pickup.global_position = drop_position
+
+
 func _update_enemy_counter() -> void:
-	enemy_counter_label.text = "Inimigos no andar: " + str(remaining_enemies)
+	enemy_counter_label.text = "Inimigos: " + str(remaining_enemies)
 
 
 func _update_room_ui() -> void:

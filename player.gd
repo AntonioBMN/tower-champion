@@ -15,12 +15,16 @@ signal died
 @export_range(0.0, 0.2, 0.005) var hit_stop_duration: float = 0.045
 @export_range(0.01, 1.0, 0.01) var hit_stop_time_scale: float = 0.08
 @export_range(1, 64, 1) var impact_particle_amount: int = 14
+@export_range(0.0, 1200.0, 10.0) var received_knockback_deceleration: float = 1500.0
+@export_range(0.0, 0.2, 0.005) var received_hit_stop_duration: float = 0.035
+@export_range(0.01, 1.0, 0.01) var received_hit_stop_time_scale: float = 0.14
 
 var attack_active: bool = false
 var hit_targets: Dictionary = {}
 var hit_stop_triggered: bool = false
 var hit_stop_active: bool = false
 var previous_time_scale: float = 1.0
+var received_knockback_velocity: Vector2 = Vector2.ZERO
 
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var aim_pivot: Node2D = $AimPivot
@@ -45,7 +49,7 @@ func _ready() -> void:
 	print_health()
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if health_component.is_dead:
 		return
 
@@ -56,8 +60,12 @@ func _physics_process(_delta: float) -> void:
 		"move_down"
 	)
 
-	velocity = direction * speed
+	velocity = direction * speed + received_knockback_velocity
 	move_and_slide()
+	received_knockback_velocity = received_knockback_velocity.move_toward(
+		Vector2.ZERO,
+		received_knockback_deceleration * delta
+	)
 
 	update_animation(direction)
 	update_aim()
@@ -226,15 +234,18 @@ func _spawn_hit_particles(
 	particles.restart()
 
 
-func _apply_hit_stop() -> void:
-	if hit_stop_active or hit_stop_duration <= 0.0:
+func _apply_hit_stop(
+	duration: float = hit_stop_duration,
+	time_scale: float = hit_stop_time_scale
+) -> void:
+	if hit_stop_active or duration <= 0.0:
 		return
 
 	hit_stop_active = true
 	previous_time_scale = Engine.time_scale
-	Engine.time_scale = hit_stop_time_scale
+	Engine.time_scale = time_scale
 	await get_tree().create_timer(
-		hit_stop_duration,
+		duration,
 		true,
 		false,
 		true
@@ -288,8 +299,18 @@ func _create_synth_sound(
 	return stream
 
 
-func take_damage(amount: int) -> void:
-	health_component.take_damage(amount)
+func take_damage(amount: int) -> bool:
+	var damage_applied := health_component.take_damage(amount)
+	if damage_applied:
+		_apply_hit_stop(
+			received_hit_stop_duration,
+			received_hit_stop_time_scale
+		)
+	return damage_applied
+
+
+func apply_knockback(impulse: Vector2) -> void:
+	received_knockback_velocity = impulse
 
 
 func _on_health_damaged(_amount: int, current_health: int) -> void:

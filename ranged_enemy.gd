@@ -4,6 +4,7 @@ extends CharacterBody2D
 signal died
 
 const PROJECTILE_SCENE: PackedScene = preload("res://enemy_projectile.tscn")
+const COMBAT_FEEDBACK = preload("res://combat_feedback.gd")
 
 @export_group("Stats")
 @export_range(1, 100, 1) var max_health: int = 1
@@ -20,20 +21,26 @@ const PROJECTILE_SCENE: PackedScene = preload("res://enemy_projectile.tscn")
 @export_range(100.0, 1200.0, 10.0) var projectile_speed: float = 520.0
 @export_range(0.2, 5.0, 0.05) var attack_interval: float = 1.15
 @export_range(100.0, 1000.0, 10.0) var attack_range: float = 580.0
+@export_range(1, 48, 1) var launch_particle_amount: int = 10
 
 var player: Node2D
 var knockback_velocity: Vector2 = Vector2.ZERO
+var attack_feedback_remaining: float = 0.0
 
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var health_component: HealthComponent = $HealthComponent
 @onready var aim_pivot: Node2D = $AimPivot
 @onready var muzzle: Marker2D = $AimPivot/Muzzle
 @onready var shoot_cooldown: Timer = $ShootCooldown
+@onready var attack_audio: AudioStreamPlayer2D = $AttackAudio
 
 
 func _ready() -> void:
 	player = get_tree().get_first_node_in_group("player") as Node2D
 	shoot_cooldown.wait_time = attack_interval
+	attack_audio.stream = COMBAT_FEEDBACK.create_synth_sound(
+		480.0, 170.0, 0.14, 0.22
+	)
 	health_component.max_health = max_health
 	health_component.reset_health()
 	health_component.damaged.connect(_on_health_damaged)
@@ -41,8 +48,10 @@ func _ready() -> void:
 	animated_sprite.self_modulate = Color(0.58, 0.78, 1.0, 1.0)
 
 
-func _physics_process(_delta: float) -> void:
-	if _process_knockback(_delta):
+func _physics_process(delta: float) -> void:
+	attack_feedback_remaining = maxf(attack_feedback_remaining - delta, 0.0)
+
+	if _process_knockback(delta):
 		return
 
 	if not is_instance_valid(player) or health_component.is_dead:
@@ -78,14 +87,16 @@ func _physics_process(_delta: float) -> void:
 
 func _stop_moving() -> void:
 	velocity = Vector2.ZERO
-	animated_sprite.play("idle")
+	if attack_feedback_remaining <= 0.0:
+		animated_sprite.play("idle")
 
 
 func _update_animation(aim_direction: Vector2) -> void:
-	if velocity == Vector2.ZERO:
-		animated_sprite.play("idle")
-	else:
-		animated_sprite.play("walk")
+	if attack_feedback_remaining <= 0.0:
+		if velocity == Vector2.ZERO:
+			animated_sprite.play("idle")
+		else:
+			animated_sprite.play("walk")
 
 	if abs(aim_direction.x) > 0.01:
 		animated_sprite.flip_h = aim_direction.x < 0.0
@@ -121,10 +132,32 @@ func shoot() -> void:
 
 
 func _show_shoot_feedback() -> void:
+	attack_feedback_remaining = 0.16
+	animated_sprite.play("attack")
 	animated_sprite.modulate = Color(0.45, 0.9, 1.0, 1.0)
+	attack_audio.play()
+
+	var shot_direction := muzzle.global_transform.x.normalized()
+	COMBAT_FEEDBACK.spawn_impact_particles(
+		get_tree(),
+		muzzle.global_position,
+		shot_direction,
+		Color(0.3, 0.82, 1.0, 1.0),
+		launch_particle_amount,
+		"RangedLaunchParticles"
+	)
+
+	animated_sprite.position = -shot_direction * 7.0
 
 	var tween := create_tween()
+	tween.set_parallel(true)
 	tween.tween_property(animated_sprite, "modulate", Color.WHITE, 0.14)
+	tween.tween_property(
+		animated_sprite,
+		"position",
+		Vector2.ZERO,
+		0.14
+	).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func take_damage(amount: int) -> bool:

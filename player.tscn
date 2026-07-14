@@ -159,3 +159,9 @@ one_shot = true
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("4_health")
 invulnerability_duration = 0.8
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(0, 50)
+enabled = true
+position_smoothing_enabled = true
+position_smoothing_speed = 7.0

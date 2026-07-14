@@ -1,23 +1,36 @@
 extends CharacterBody2D
 
-const PROJECTILE_SCENE: PackedScene = preload("res://projectile.tscn")
-
 @export var speed: float = 250.0
 @export var max_health: int = 5
+
+@export_group("Sword Attack")
+@export_range(1, 100, 1) var attack_damage: int = 1
+@export_range(16.0, 256.0, 1.0) var attack_range: float = 90.0
+@export_range(16.0, 160.0, 1.0) var attack_width: float = 56.0
+@export_range(0.05, 3.0, 0.05) var attack_interval: float = 0.45
+@export_range(0.05, 1.0, 0.01) var attack_active_duration: float = 0.12
 
 var current_health: int
 var is_invulnerable: bool = false
 var is_dead: bool = false
+var attack_active: bool = false
+var hit_targets: Dictionary = {}
 
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var aim_pivot: Node2D = $AimPivot
-@onready var muzzle: Marker2D = $AimPivot/Muzzle
-@onready var shoot_cooldown: Timer = $ShootCooldown
+@onready var sword_attack: Area2D = $SwordAttack
+@onready var attack_collision: CollisionShape2D = (
+	$SwordAttack/CollisionShape2D
+)
+@onready var attack_visual: Polygon2D = $SwordAttack/AttackVisual
+@onready var attack_cooldown: Timer = $AttackCooldown
 @onready var invulnerability_timer: Timer = $InvulnerabilityTimer
 
 
 func _ready() -> void:
 	current_health = max_health
+	configure_sword_attack()
+	sword_attack.body_entered.connect(_on_sword_attack_body_entered)
 	invulnerability_timer.timeout.connect(
 		_on_invulnerability_timer_timeout
 	)
@@ -41,7 +54,7 @@ func _physics_process(_delta: float) -> void:
 
 	update_animation(direction)
 	update_aim()
-	handle_shooting()
+	handle_attack_input()
 
 
 func update_animation(direction: Vector2) -> void:
@@ -61,22 +74,84 @@ func update_aim() -> void:
 		animated_sprite.flip_h = aim_direction.x < 0.0
 
 
-func handle_shooting() -> void:
-	if Input.is_action_pressed("shoot") and shoot_cooldown.is_stopped():
-		shoot()
+func configure_sword_attack() -> void:
+	attack_cooldown.wait_time = attack_interval
+
+	var attack_shape := attack_collision.shape as RectangleShape2D
+	attack_shape.size = Vector2(attack_range, attack_width)
+	attack_collision.position = Vector2(attack_range * 0.5, 0.0)
+
+	var half_width := attack_width * 0.5
+	attack_visual.polygon = PackedVector2Array([
+		Vector2.ZERO,
+		Vector2(attack_range - 12.0, -half_width),
+		Vector2(attack_range, 0.0),
+		Vector2(attack_range - 12.0, half_width),
+	])
 
 
-func shoot() -> void:
-	var projectile := PROJECTILE_SCENE.instantiate() as Projectile
+func handle_attack_input() -> void:
+	if (
+		Input.is_action_pressed("attack")
+		and attack_cooldown.is_stopped()
+		and not attack_active
+	):
+		perform_sword_attack()
 
-	get_tree().current_scene.add_child(projectile)
 
-	projectile.global_position = muzzle.global_position
-	projectile.direction = Vector2.RIGHT.rotated(
-		aim_pivot.global_rotation
+func perform_sword_attack() -> void:
+	attack_active = true
+	hit_targets.clear()
+	attack_cooldown.start()
+
+	# Lock the hitbox to the direction selected at the start of the swing.
+	sword_attack.rotation = aim_pivot.rotation
+	attack_collision.set_deferred("disabled", false)
+	show_attack_feedback()
+
+	await get_tree().physics_frame
+
+	for body in sword_attack.get_overlapping_bodies():
+		try_damage_attack_target(body)
+
+	await get_tree().create_timer(attack_active_duration).timeout
+
+	attack_collision.set_deferred("disabled", true)
+	attack_active = false
+	attack_visual.hide()
+
+
+func try_damage_attack_target(body: Node) -> void:
+	if not attack_active or not is_instance_valid(body):
+		return
+
+	if not body.is_in_group("enemies") or not body.has_method("take_damage"):
+		return
+
+	var target_id := body.get_instance_id()
+
+	if hit_targets.has(target_id):
+		return
+
+	hit_targets[target_id] = true
+	body.take_damage(attack_damage)
+
+
+func _on_sword_attack_body_entered(body: Node2D) -> void:
+	try_damage_attack_target(body)
+
+
+func show_attack_feedback() -> void:
+	attack_visual.show()
+	attack_visual.modulate = Color(1.0, 0.9, 0.35, 0.8)
+
+	var tween := create_tween()
+	tween.tween_property(
+		attack_visual,
+		"modulate:a",
+		0.15,
+		attack_active_duration
 	)
-
-	shoot_cooldown.start()
 
 
 func take_damage(amount: int) -> void:

@@ -20,6 +20,48 @@ func _run() -> void:
 	var initial_visited_rooms: Dictionary = minimap.get("visited_rooms")
 	_expect(initial_visited_rooms.size() == 1, "minimap should start with one room")
 	_expect(minimap.get("current_room_index") == 0, "minimap should highlight start")
+	_expect(
+		minimap.call("get_current_room_draw_position").distance_to(
+			minimap.size * 0.5
+		) < 0.1,
+		"current minimap room should start centered"
+	)
+	_expect(
+		is_equal_approx(minimap.call("_calculate_draw_scale"), 1.0),
+		"minimap should keep a fixed zoom as the graph expands"
+	)
+	var initial_connections: Array = floor_scene.get("room_connections")
+	var generated_room_cells: Array = floor_scene.get("room_cells")
+	var generated_room_bounds: Array = floor_scene.get("room_bounds")
+	for room_index in range(room_count):
+		_expect(
+			minimap.call("get_room_shape_cell_count", room_index)
+			== generated_room_cells[room_index].size(),
+			"minimap should receive every exact generated room shape"
+		)
+	_expect(
+		generated_room_cells[2].size()
+		< generated_room_bounds[2].size.x * generated_room_bounds[2].size.y,
+		"L-shaped room should preserve its cutout"
+	)
+	_expect(
+		generated_room_cells[3].size()
+		< generated_room_bounds[3].size.x * generated_room_bounds[3].size.y,
+		"cross-shaped room should preserve its cutouts"
+	)
+	_expect(
+		minimap.call("get_visible_enemy_marker_count") == 1,
+		"minimap should show the starting room enemy marker"
+	)
+	_expect(
+		minimap.call("get_current_room_obstacle_marker_count") >= 1,
+		"minimap should show neutral obstacle markers"
+	)
+	_expect(
+		minimap.call("get_visible_door_count", 0)
+		== initial_connections[0].size(),
+		"minimap should show every door in the starting room"
+	)
 	floor_scene.call("_spawn_room_enemies", 1)
 
 	var has_ranged_enemy := false
@@ -90,6 +132,17 @@ func _run() -> void:
 		_expect(
 			minimap.get("current_room_index") == destination,
 			"minimap should highlight the current room"
+		)
+		_expect(
+			minimap.call("get_current_room_draw_position").distance_to(
+				minimap.size * 0.5
+			) < 0.1,
+			"current minimap room should remain centered after transition"
+		)
+		_expect(
+			minimap.call("get_visible_door_count", destination)
+			== connections[destination].size(),
+			"minimap should show every door in the destination room"
 		)
 
 	if failures == 0:

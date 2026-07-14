@@ -68,7 +68,17 @@ func _ready() -> void:
 	_configure_seed()
 	_configure_tilemaps()
 	_generate_floor()
-	minimap.configure(room_grid_positions, room_connections)
+	minimap.configure(
+		room_grid_positions,
+		room_connections,
+		room_bounds,
+		room_cells,
+		room_door_cells,
+		obstacle_rects,
+		player,
+		enemies,
+		CELL_SIZE
+	)
 	minimap.visit_room(0)
 	_validate_floor()
 	_paint_tiles()
@@ -739,6 +749,7 @@ func _spawn_room_enemies(room_index: int) -> void:
 		)
 		var enemy := enemy_scene.instantiate() as CharacterBody2D
 		enemies.add_child(enemy)
+		enemy.set_meta("room_index", room_index)
 		enemy.global_position = _actor_position_for_cell(spawn_cell)
 		enemy.connect("died", _on_enemy_died.bind(room_index, enemy))
 

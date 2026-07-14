@@ -46,8 +46,12 @@ func _run() -> void:
 		"start and special rooms should not contain combat"
 	)
 	_expect(
-		room_enemy_counts[final_room_index] == 3,
-		"final room should have a stronger encounter"
+		floor_scene.get("room_encounter_waves")[final_room_index].size() == 3,
+		"final room should have a three-wave encounter"
+	)
+	_expect(
+		room_enemy_counts[final_room_index] == 7,
+		"final encounter should track enemies from every wave"
 	)
 	_expect(
 		minimap.call("get_room_type", final_room_index) == "final",

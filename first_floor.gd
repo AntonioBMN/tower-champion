@@ -11,12 +11,15 @@ const ENEMY_SCENE: PackedScene = preload("res://enemy.tscn")
 const RANGED_ENEMY_SCENE: PackedScene = preload("res://ranged_enemy.tscn")
 const HEALTH_PICKUP_SCENE: PackedScene = preload("res://health_pickup.tscn")
 const FLOOR_EXIT_SCENE: PackedScene = preload("res://floor_exit.tscn")
+const COMBAT_FEEDBACK = preload("res://combat_feedback.gd")
 const DOOR_LOCKED_COLOR := Color(0.75, 0.16, 0.12, 0.95)
 const DOOR_OPEN_COLOR := Color(0.95, 0.67, 0.2, 0.95)
 const ROOM_TYPE_START := "start"
 const ROOM_TYPE_NORMAL := "normal"
 const ROOM_TYPE_SPECIAL := "special"
 const ROOM_TYPE_FINAL := "final"
+const ENEMY_TYPE_MELEE := "melee"
+const ENEMY_TYPE_RANGED := "ranged"
 
 @export_group("Generation")
 @export var randomize_layout: bool = true
@@ -27,6 +30,9 @@ const ROOM_TYPE_FINAL := "final"
 @export_group("Room Rewards")
 @export_range(0.0, 1.0, 0.05) var health_drop_chance: float = 0.35
 @export_range(1, 10, 1) var health_pickup_amount: int = 1
+
+@export_group("Encounter Waves")
+@export_range(0.05, 2.0, 0.05) var wave_spawn_delay: float = 0.55
 
 var rng := RandomNumberGenerator.new()
 var generation_seed: int
@@ -43,6 +49,11 @@ var room_distances: Array[int] = []
 var open_edges: Dictionary = {}
 var obstacle_rects: Array[Rect2i] = []
 var enemy_spawn_cells: Array = []
+var room_encounter_waves: Array = []
+var room_current_wave: Array[int] = []
+var room_active_enemies: Array[int] = []
+var room_wave_transitioning: Array[bool] = []
+var room_encounter_complete: Array[bool] = []
 var room_enemies_remaining: Array[int] = []
 var spawned_rooms: Dictionary = {}
 var rewarded_rooms: Dictionary = {}
@@ -74,6 +85,7 @@ var is_transitioning: bool = false
 @onready var room_label: Label = $UI/RoomLabel
 @onready var seed_label: Label = $UI/SeedLabel
 @onready var floor_cleared_label: Label = $UI/FloorClearedLabel
+@onready var wave_label: Label = $UI/WaveLabel
 @onready var transition_fade: ColorRect = $UI/TransitionFade
 @onready var victory_overlay: ColorRect = $UI/VictoryOverlay
 @onready var victory_details: Label = $UI/VictoryOverlay/VictoryDetails
@@ -108,6 +120,7 @@ func _ready() -> void:
 
 	transition_fade.hide()
 	victory_overlay.hide()
+	wave_label.hide()
 	floor_cleared_label.hide()
 	seed_label.text = "Andar 1  •  Seed: " + str(generation_seed)
 	_spawn_room_enemies(0)
@@ -165,6 +178,11 @@ func _generate_floor() -> void:
 	open_edges.clear()
 	obstacle_rects.clear()
 	enemy_spawn_cells.clear()
+	room_encounter_waves.clear()
+	room_current_wave.clear()
+	room_active_enemies.clear()
+	room_wave_transitioning.clear()
+	room_encounter_complete.clear()
 	room_enemies_remaining.clear()
 	spawned_rooms.clear()
 	rewarded_rooms.clear()
@@ -494,6 +512,11 @@ func _add_obstacle(rect: Rect2i) -> void:
 
 func _prepare_enemy_spawns() -> void:
 	enemy_spawn_cells.resize(generated_room_count)
+	room_encounter_waves.resize(generated_room_count)
+	room_current_wave.resize(generated_room_count)
+	room_active_enemies.resize(generated_room_count)
+	room_wave_transitioning.resize(generated_room_count)
+	room_encounter_complete.resize(generated_room_count)
 	room_enemies_remaining.resize(generated_room_count)
 	remaining_enemies = 0
 
@@ -507,27 +530,71 @@ func _prepare_enemy_spawns() -> void:
 	]
 
 	for room_index in range(generated_room_count):
-		var spawn_count := 0
-		match room_types[room_index]:
-			ROOM_TYPE_START, ROOM_TYPE_SPECIAL:
-				spawn_count = 0
-			ROOM_TYPE_FINAL:
-				spawn_count = 3
-			_:
-				spawn_count = rng.randi_range(1, 2)
+		var waves := _build_room_encounter(room_index)
+		room_encounter_waves[room_index] = waves
+		room_current_wave[room_index] = -1
+		room_active_enemies[room_index] = 0
+		room_wave_transitioning[room_index] = false
+		room_encounter_complete[room_index] = waves.is_empty()
+
+		var encounter_enemy_count := 0
+		var maximum_wave_size := 0
+		for wave in waves:
+			encounter_enemy_count += wave.size()
+			maximum_wave_size = maxi(maximum_wave_size, wave.size())
+
 		var center := _room_center_cell(room_index)
 		var reserved: Dictionary = {}
 		var spawns: Array[Vector2i] = []
 
-		for spawn_index in range(spawn_count):
+		for spawn_index in range(maximum_wave_size):
 			var preferred: Vector2i = center + offsets[spawn_index % offsets.size()]
 			var spawn := _find_safe_cell(room_index, preferred, reserved)
 			spawns.append(spawn)
 			reserved[spawn] = true
 
 		enemy_spawn_cells[room_index] = spawns
-		room_enemies_remaining[room_index] = spawns.size()
-		remaining_enemies += spawns.size()
+		room_enemies_remaining[room_index] = encounter_enemy_count
+		remaining_enemies += encounter_enemy_count
+
+
+func _build_room_encounter(room_index: int) -> Array:
+	if room_types[room_index] in [ROOM_TYPE_START, ROOM_TYPE_SPECIAL]:
+		return []
+
+	if room_types[room_index] == ROOM_TYPE_FINAL:
+		return [
+			[ENEMY_TYPE_MELEE, ENEMY_TYPE_MELEE],
+			[ENEMY_TYPE_RANGED, ENEMY_TYPE_MELEE],
+			[ENEMY_TYPE_RANGED, ENEMY_TYPE_MELEE, ENEMY_TYPE_MELEE],
+		]
+
+	var distance := room_distances[room_index]
+	var wave_count := 1 if distance <= 1 else 2
+	var waves: Array = []
+
+	for wave_index in range(wave_count):
+		var enemy_count := clampi(
+			1 + int((distance + wave_index) / 2),
+			1,
+			3
+		)
+		var wave: Array[String] = []
+
+		for enemy_index in range(enemy_count):
+			var can_use_ranged := distance + wave_index >= 2
+			var use_ranged := (
+				can_use_ranged
+				and enemy_index == 0
+				and (room_index + wave_index) % 2 == 1
+			)
+			wave.append(
+				ENEMY_TYPE_RANGED if use_ranged else ENEMY_TYPE_MELEE
+			)
+
+		waves.append(wave)
+
+	return waves
 
 
 func _find_safe_cell(
@@ -832,23 +899,90 @@ func _spawn_room_enemies(room_index: int) -> void:
 		_spawn_special_room_reward(room_index)
 		return
 
-	for spawn_index in range(enemy_spawn_cells[room_index].size()):
-		var spawn_cell: Vector2i = enemy_spawn_cells[room_index][spawn_index]
-		var use_ranged_enemy := (
-			spawn_index == 0
-			and (
-				room_types[room_index] == ROOM_TYPE_FINAL
-				or (room_index > 0 and room_index % 2 == 1)
-			)
+	if room_encounter_waves[room_index].is_empty():
+		room_encounter_complete[room_index] = true
+		return
+
+	_spawn_next_room_wave(room_index)
+
+
+func _spawn_next_room_wave(room_index: int) -> void:
+	if (
+		room_wave_transitioning[room_index]
+		or room_encounter_complete[room_index]
+		or room_active_enemies[room_index] > 0
+	):
+		return
+
+	var next_wave_index := room_current_wave[room_index] + 1
+	var waves: Array = room_encounter_waves[room_index]
+	if next_wave_index >= waves.size():
+		room_encounter_complete[room_index] = true
+		return
+
+	room_current_wave[room_index] = next_wave_index
+	room_wave_transitioning[room_index] = true
+	if room_index == current_room_index:
+		_show_wave_banner(next_wave_index + 1, waves.size())
+		_update_room_ui()
+
+	await get_tree().create_timer(wave_spawn_delay).timeout
+	if not is_inside_tree() or room_encounter_complete[room_index]:
+		return
+
+	var wave: Array = waves[next_wave_index]
+	room_active_enemies[room_index] = wave.size()
+	for enemy_index in range(wave.size()):
+		_spawn_wave_enemy(
+			room_index,
+			enemy_index,
+			wave[enemy_index]
 		)
-		var enemy_scene := (
-			RANGED_ENEMY_SCENE if use_ranged_enemy else ENEMY_SCENE
-		)
-		var enemy := enemy_scene.instantiate() as CharacterBody2D
-		enemies.add_child(enemy)
-		enemy.set_meta("room_index", room_index)
-		enemy.global_position = _actor_position_for_cell(spawn_cell)
-		enemy.connect("died", _on_enemy_died.bind(room_index, enemy))
+
+	room_wave_transitioning[room_index] = false
+	if room_index == current_room_index:
+		_update_room_ui()
+
+
+func _spawn_wave_enemy(
+	room_index: int,
+	spawn_index: int,
+	enemy_type: String
+) -> void:
+	var spawn_cell: Vector2i = enemy_spawn_cells[room_index][spawn_index]
+	var enemy_scene := (
+		RANGED_ENEMY_SCENE
+		if enemy_type == ENEMY_TYPE_RANGED
+		else ENEMY_SCENE
+	)
+	var spawn_position := _actor_position_for_cell(spawn_cell)
+	COMBAT_FEEDBACK.spawn_impact_particles(
+		get_tree(),
+		spawn_position + Vector2(0.0, 50.0),
+		Vector2.UP,
+		Color(0.72, 0.25, 1.0, 1.0),
+		10,
+		"WaveSpawnParticles"
+	)
+
+	var enemy := enemy_scene.instantiate() as CharacterBody2D
+	enemies.add_child(enemy)
+	enemy.set_meta("room_index", room_index)
+	enemy.set_meta("wave_index", room_current_wave[room_index])
+	enemy.global_position = spawn_position
+	enemy.connect("died", _on_enemy_died.bind(room_index, enemy))
+
+
+func _show_wave_banner(wave_number: int, total_waves: int) -> void:
+	wave_label.text = "ONDA %d / %d" % [wave_number, total_waves]
+	wave_label.modulate = Color(1.0, 1.0, 1.0, 0.0)
+	wave_label.show()
+
+	var tween := create_tween()
+	tween.tween_property(wave_label, "modulate:a", 1.0, 0.12)
+	tween.tween_interval(maxf(wave_spawn_delay, 0.3))
+	tween.tween_property(wave_label, "modulate:a", 0.0, 0.22)
+	tween.tween_callback(wave_label.hide)
 
 
 func _spawn_special_room_reward(room_index: int) -> void:
@@ -873,11 +1007,21 @@ func _on_enemy_died(room_index: int, defeated_enemy: Node2D) -> void:
 		room_enemies_remaining[room_index] - 1,
 		0
 	)
+	room_active_enemies[room_index] = maxi(
+		room_active_enemies[room_index] - 1,
+		0
+	)
 	remaining_enemies = maxi(remaining_enemies - 1, 0)
 	_refresh_room_doors(room_index)
 	_update_enemy_counter()
 
-	if room_enemies_remaining[room_index] == 0:
+	if (
+		room_active_enemies[room_index] == 0
+		and room_enemies_remaining[room_index] > 0
+	):
+		_spawn_next_room_wave(room_index)
+	elif room_enemies_remaining[room_index] == 0:
+		room_encounter_complete[room_index] = true
 		_try_drop_room_reward(
 			room_index,
 			defeated_enemy.global_position + Vector2(0.0, 50.0)
@@ -910,24 +1054,37 @@ func _update_enemy_counter() -> void:
 
 
 func _update_room_ui() -> void:
-	var room_enemy_count := room_enemies_remaining[current_room_index]
 	var room_type_name := _room_type_display_name(
 		room_types[current_room_index]
 	)
-	var status := (
-		"%d inimigo(s)" % room_enemy_count
-		if room_enemy_count > 0
-		else (
-			"Saida aberta"
-			if exit_is_available and current_room_index == final_room_index
-			else "Limpa"
-		)
-	)
+	var status := _room_encounter_status(current_room_index)
 	room_label.text = "%s • %d/%d • %s" % [
 		room_type_name,
 		current_room_index + 1,
 		generated_room_count,
 		status,
+	]
+
+
+func _room_encounter_status(room_index: int) -> String:
+	if exit_is_available and room_index == final_room_index:
+		return "Saida aberta"
+
+	if room_encounter_complete[room_index]:
+		return "Limpa"
+
+	if room_wave_transitioning[room_index]:
+		return "Proxima onda..."
+
+	if not spawned_rooms.has(room_index):
+		return "Encontro aguardando"
+
+	var wave_number := room_current_wave[room_index] + 1
+	var total_waves: int = room_encounter_waves[room_index].size()
+	return "Onda %d/%d • %d ativos" % [
+		wave_number,
+		total_waves,
+		room_active_enemies[room_index],
 	]
 
 

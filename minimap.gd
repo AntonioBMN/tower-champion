@@ -222,12 +222,12 @@ func _draw_room_doors(
 		)
 		var door_thickness := maxf(2.5, 3.2 * draw_scale)
 		var desired_door_length := maxf(6.0, 9.0 * draw_scale)
-		var wall_span := _door_wall_span_cells(
+		var centered_wall_span := _door_centered_wall_span_cells(
 			room_index, door_cell, direction
 		)
 		var available_door_length := maxf(
 			cell_size,
-			wall_span * cell_size - 0.4
+			centered_wall_span * cell_size - 0.4
 		)
 		var door_length := minf(
 			desired_door_length,
@@ -255,26 +255,41 @@ func _draw_room_doors(
 		)
 
 
-func _door_wall_span_cells(
+func _door_centered_wall_span_cells(
 	room_index: int,
 	door_cell: Vector2i,
 	direction: Vector2i
 ) -> int:
+	var negative_extent := _door_wall_extent_cells(
+		room_index, door_cell, direction, -1
+	)
+	var positive_extent := _door_wall_extent_cells(
+		room_index, door_cell, direction, 1
+	)
+	# Como o marcador permanece centralizado na celula real da porta, ele so
+	# pode crescer igualmente ate o lado mais curto do trecho de parede.
+	return mini(negative_extent, positive_extent) * 2 + 1
+
+
+func _door_wall_extent_cells(
+	room_index: int,
+	door_cell: Vector2i,
+	direction: Vector2i,
+	tangent_sign: int
+) -> int:
 	var cells: Dictionary = room_cells[room_index]
 	var tangent := Vector2i(-direction.y, direction.x)
-	var span := 1
+	var extent := 0
+	var candidate: Vector2i = door_cell + tangent * tangent_sign
 
-	for tangent_sign_value in [-1, 1]:
-		var tangent_sign: int = tangent_sign_value
-		var candidate: Vector2i = door_cell + tangent * tangent_sign
-		while (
-			cells.has(candidate)
-			and not cells.has(candidate + direction)
-		):
-			span += 1
-			candidate += tangent * tangent_sign
+	while (
+		cells.has(candidate)
+		and not cells.has(candidate + direction)
+	):
+		extent += 1
+		candidate += tangent * tangent_sign
 
-	return span
+	return extent
 
 
 func _draw_room_shape(

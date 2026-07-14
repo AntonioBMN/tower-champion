@@ -122,6 +122,21 @@ text = "PRIMEIRO ANDAR CONCLUÍDO!"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="WaveLabel" type="Label" parent="UI"]
+visible = false
+offset_left = 426.0
+offset_top = 44.0
+offset_right = 726.0
+offset_bottom = 96.0
+theme_override_colors/font_color = Color(0.86, 0.56, 1, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 3
+theme_override_font_sizes/font_size = 30
+text = "ONDA 1 / 2"
+horizontal_alignment = 1
+vertical_alignment = 1
+
 [node name="HealthPanel" type="ColorRect" parent="UI"]
 offset_left = 12.0
 offset_top = 12.0

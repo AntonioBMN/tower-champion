@@ -44,6 +44,18 @@ func _run() -> void:
 		< generated_room_bounds[2].size.x * generated_room_bounds[2].size.y,
 		"L-shaped room should preserve its cutout"
 	)
+	var l_room_right_door: Vector2i = floor_scene.call(
+		"_find_door_cell", 2, Vector2i.RIGHT
+	)
+	_expect(
+		minimap.call(
+			"_door_centered_wall_span_cells",
+			2,
+			l_room_right_door,
+			Vector2i.RIGHT
+		) == 1,
+		"right L-room door marker should stop before the cutout"
+	)
 	_expect(
 		generated_room_cells[3].size()
 		< generated_room_bounds[3].size.x * generated_room_bounds[3].size.y,
@@ -63,21 +75,19 @@ func _run() -> void:
 		"minimap should show every door in the starting room"
 	)
 	var ranged_test_room: int = floor_scene.get("final_room_index")
-	floor_scene.call("_spawn_room_enemies", ranged_test_room)
+	var encounter_waves: Array = floor_scene.get("room_encounter_waves")
 
 	var has_ranged_enemy := false
 
-	for enemy in floor_scene.get_node("Enemies").get_children():
-		var enemy_script := enemy.get_script() as Script
-
-		if (
-			enemy_script != null
-			and enemy_script.resource_path == "res://ranged_enemy.gd"
-		):
+	for wave in encounter_waves[ranged_test_room]:
+		if wave.has("ranged"):
 			has_ranged_enemy = true
 			break
 
-	_expect(has_ranged_enemy, "final room should include a ranged enemy")
+	_expect(
+		has_ranged_enemy,
+		"final encounter composition should include ranged enemies"
+	)
 
 	var connections: Array = floor_scene.get("room_connections")
 	var first_room_connections: Dictionary = connections[0]

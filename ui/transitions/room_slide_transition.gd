@@ -1,6 +1,7 @@
 class_name RoomSlideTransition
 extends Control
 
+const DISPLAY_PROFILE = preload("res://ui/display/display_profile.gd")
 const DEPARTING_ROOM_FINAL_TINT := Color(0.2, 0.22, 0.28, 1.0)
 const ENTERING_ROOM_INITIAL_TINT := Color(0.26, 0.29, 0.37, 1.0)
 
@@ -11,6 +12,10 @@ var destination_view: TextureRect
 var transition_player: AnimatedSprite2D
 var tracked_player: CanvasItem
 var tracked_player_sprite: AnimatedSprite2D
+
+
+static func get_gameplay_size() -> Vector2:
+	return Vector2(DISPLAY_PROFILE.DESIGN_SIZE)
 
 
 static func calculate_slide_offset(
@@ -56,7 +61,7 @@ func prepare(
 			tracked_player_sprite.global_position,
 			camera_center,
 			camera_zoom,
-			world_viewport.get_visible_rect().size
+			get_gameplay_size()
 		)
 	)
 	tracked_player.hide()
@@ -95,7 +100,7 @@ func play(
 	destination_view.texture = destination_texture
 	var travel_offset := calculate_slide_offset(
 		transition_direction,
-		world_viewport.get_visible_rect().size
+		get_gameplay_size()
 	)
 	var slide_tween := create_tween()
 	slide_tween.set_parallel(true)
@@ -132,7 +137,7 @@ func play(
 			tracked_player_sprite.global_position,
 			camera_center,
 			camera_zoom,
-			world_viewport.get_visible_rect().size
+			get_gameplay_size()
 		),
 		duration
 	)
@@ -163,7 +168,7 @@ func _capture_world_view(
 	if DisplayServer.get_name() == "headless":
 		return null
 
-	var viewport_size := Vector2i(world_viewport.get_visible_rect().size)
+	var viewport_size := DISPLAY_PROFILE.DESIGN_SIZE
 	if viewport_size.x <= 0 or viewport_size.y <= 0:
 		return null
 
@@ -194,7 +199,7 @@ func _capture_world_view(
 
 
 func _configure_overlay() -> void:
-	var viewport_size := world_viewport.get_visible_rect().size
+	var viewport_size := get_gameplay_size()
 	name = "RoomTransitionOverlay"
 	position = Vector2.ZERO
 	size = viewport_size
@@ -226,7 +231,7 @@ func _create_player_visual(screen_position: Vector2) -> void:
 
 
 func _build_room_views(previous_texture: Texture2D) -> void:
-	var viewport_size := world_viewport.get_visible_rect().size
+	var viewport_size := get_gameplay_size()
 	previous_view = _create_texture_rect(
 		previous_texture,
 		Vector2.ZERO,

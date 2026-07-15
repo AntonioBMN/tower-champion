@@ -31,6 +31,7 @@ const RELIC_CATALOG = preload("res://items/relics/relic_catalog.gd")
 const ROOM_SLIDE_TRANSITION = preload(
 	"res://ui/transitions/room_slide_transition.gd"
 )
+const DISPLAY_PROFILE = preload("res://ui/display/display_profile.gd")
 const DOOR_LOCKED_COLOR := Color(0.75, 0.16, 0.12, 0.95)
 const DOOR_OPEN_COLOR := Color(0.95, 0.67, 0.2, 0.95)
 const ROOM_TYPE_START := "start"
@@ -131,16 +132,19 @@ var active_transition_overlay
 @onready var player_sprite: AnimatedSprite2D = $Player/AnimatedSprite2D
 @onready var camera: Camera2D = $Player/Camera2D
 @onready var hud = $UI
+@onready var safe_frame: Control = $UI/SafeFrame
 @onready var enemy_counter_label: Label = (
-	$UI/RoomInfoPanel/EnemyCounterLabel
+	$UI/SafeFrame/RoomInfoPanel/EnemyCounterLabel
 )
-@onready var room_label: Label = $UI/RoomInfoPanel/RoomLabel
-@onready var seed_label: Label = $UI/DebugPanel/SeedLabel
-@onready var floor_cleared_label: Label = $UI/FloorClearedLabel
-@onready var transition_fade: ColorRect = $UI/TransitionFade
-@onready var victory_overlay: ColorRect = $UI/VictoryOverlay
-@onready var victory_details: Label = $UI/VictoryOverlay/VictoryDetails
-@onready var minimap = $UI/MinimapPanel/Minimap
+@onready var room_label: Label = $UI/SafeFrame/RoomInfoPanel/RoomLabel
+@onready var seed_label: Label = $UI/SafeFrame/DebugPanel/SeedLabel
+@onready var floor_cleared_label: Label = $UI/SafeFrame/FloorClearedLabel
+@onready var transition_fade: ColorRect = $UI/SafeFrame/TransitionFade
+@onready var victory_overlay: ColorRect = $UI/SafeFrame/VictoryOverlay
+@onready var victory_details: Label = (
+	$UI/SafeFrame/VictoryOverlay/VictoryDetails
+)
+@onready var minimap = $UI/SafeFrame/MinimapPanel/Minimap
 
 
 func _ready() -> void:
@@ -696,10 +700,10 @@ func _room_size(room_index: int) -> Vector2i:
 
 
 func _screen_room_size() -> Vector2i:
-	var viewport_size := get_viewport_rect().size
+	var gameplay_size := DISPLAY_PROFILE.DESIGN_SIZE
 	var viewport_cells := Vector2i(
-		floori(viewport_size.x / CELL_SIZE),
-		floori(viewport_size.y / CELL_SIZE)
+		floori(float(gameplay_size.x) / CELL_SIZE),
+		floori(float(gameplay_size.y) / CELL_SIZE)
 	)
 	return Vector2i(
 		maxi(
@@ -1291,7 +1295,7 @@ func _transition_to_room(destination_room: int, direction: Vector2i) -> void:
 	player.set_physics_process(false)
 	_remove_room_slide_overlay()
 	active_transition_overlay = ROOM_SLIDE_TRANSITION.new()
-	hud.add_child(active_transition_overlay)
+	safe_frame.add_child(active_transition_overlay)
 	var slide_is_ready: bool = await active_transition_overlay.prepare(
 		get_viewport(),
 		camera.get_screen_center_position(),

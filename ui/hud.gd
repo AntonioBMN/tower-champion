@@ -20,40 +20,71 @@ var relic_notice_tween: Tween
 var damage_value_start_position: Vector2
 var map_expanded: bool = false
 
-@onready var health_bar: ProgressBar = $HealthPanel/HealthBar
-@onready var health_label: Label = $HealthPanel/HealthLabel
-@onready var invulnerability_label: Label = $HealthPanel/InvulnerabilityLabel
-@onready var damage_value_label: Label = $HealthPanel/DamageValueLabel
-@onready var damage_flash: ColorRect = $DamageFlash
-@onready var death_overlay: ColorRect = $DeathOverlay
-@onready var relic_panel: ColorRect = $RelicPanel
-@onready var relic_list_label: Label = $RelicPanel/RelicListLabel
-@onready var relic_notice: Label = $RelicNotice
-@onready var key_label: Label = $HealthPanel/KeyLabel
-@onready var health_title: Label = $HealthPanel/TitleLabel
-@onready var map_backdrop: ColorRect = $MapBackdrop
-@onready var minimap_panel: ColorRect = $MinimapPanel
-@onready var map_title: Label = $MinimapPanel/TitleLabel
-@onready var minimap: FloorMinimap = $MinimapPanel/Minimap
-@onready var map_progress_label: Label = $MinimapPanel/ProgressLabel
-@onready var map_legend_label: Label = $MinimapPanel/LegendLabel
-@onready var map_hint_label: Label = $MinimapPanel/HintLabel
-@onready var relic_title: Label = $RelicPanel/TitleLabel
-@onready var debug_panel: ColorRect = $DebugPanel
-@onready var controls_label: Label = $DebugPanel/ControlsLabel
-@onready var death_title: Label = $DeathOverlay/DeathTitle
-@onready var death_hint: Label = $DeathOverlay/DeathHint
-@onready var victory_title: Label = $VictoryOverlay/VictoryTitle
-@onready var victory_hint: Label = $VictoryOverlay/VictoryHint
-@onready var pause_overlay: ColorRect = $PauseOverlay
-@onready var pause_title: Label = $PauseOverlay/PausePanel/PauseTitle
-@onready var resume_button: Button = $PauseOverlay/PausePanel/ResumeButton
-@onready var restart_button: Button = $PauseOverlay/PausePanel/RestartButton
-@onready var quit_button: Button = $PauseOverlay/PausePanel/QuitButton
+@onready var display_manager: Node = get_node("/root/DisplayManager")
+@onready var safe_frame: Control = $SafeFrame
+@onready var health_bar: ProgressBar = $SafeFrame/HealthPanel/HealthBar
+@onready var health_label: Label = $SafeFrame/HealthPanel/HealthLabel
+@onready var invulnerability_label: Label = (
+	$SafeFrame/HealthPanel/InvulnerabilityLabel
+)
+@onready var damage_value_label: Label = (
+	$SafeFrame/HealthPanel/DamageValueLabel
+)
+@onready var damage_flash: ColorRect = $SafeFrame/DamageFlash
+@onready var death_overlay: ColorRect = $SafeFrame/DeathOverlay
+@onready var relic_panel: ColorRect = $SafeFrame/RelicPanel
+@onready var relic_list_label: Label = (
+	$SafeFrame/RelicPanel/RelicListLabel
+)
+@onready var relic_notice: Label = $SafeFrame/RelicNotice
+@onready var key_label: Label = $SafeFrame/HealthPanel/KeyLabel
+@onready var health_title: Label = $SafeFrame/HealthPanel/TitleLabel
+@onready var map_backdrop: ColorRect = $SafeFrame/MapBackdrop
+@onready var minimap_panel: ColorRect = $SafeFrame/MinimapPanel
+@onready var map_title: Label = $SafeFrame/MinimapPanel/TitleLabel
+@onready var minimap: FloorMinimap = $SafeFrame/MinimapPanel/Minimap
+@onready var map_progress_label: Label = (
+	$SafeFrame/MinimapPanel/ProgressLabel
+)
+@onready var map_legend_label: Label = $SafeFrame/MinimapPanel/LegendLabel
+@onready var map_hint_label: Label = $SafeFrame/MinimapPanel/HintLabel
+@onready var relic_title: Label = $SafeFrame/RelicPanel/TitleLabel
+@onready var debug_panel: ColorRect = $SafeFrame/DebugPanel
+@onready var controls_label: Label = $SafeFrame/DebugPanel/ControlsLabel
+@onready var death_title: Label = $SafeFrame/DeathOverlay/DeathTitle
+@onready var death_hint: Label = $SafeFrame/DeathOverlay/DeathHint
+@onready var victory_title: Label = $SafeFrame/VictoryOverlay/VictoryTitle
+@onready var victory_hint: Label = $SafeFrame/VictoryOverlay/VictoryHint
+@onready var pause_overlay: ColorRect = $SafeFrame/PauseOverlay
+@onready var pause_title: Label = (
+	$SafeFrame/PauseOverlay/PausePanel/PauseTitle
+)
+@onready var resolution_label: Label = (
+	$SafeFrame/PauseOverlay/PausePanel/ResolutionLabel
+)
+@onready var resolution_option: OptionButton = (
+	$SafeFrame/PauseOverlay/PausePanel/ResolutionOption
+)
+@onready var apply_resolution_button: Button = (
+	$SafeFrame/PauseOverlay/PausePanel/ApplyResolutionButton
+)
+@onready var resolution_status: Label = (
+	$SafeFrame/PauseOverlay/PausePanel/ResolutionStatus
+)
+@onready var resume_button: Button = (
+	$SafeFrame/PauseOverlay/PausePanel/ResumeButton
+)
+@onready var restart_button: Button = (
+	$SafeFrame/PauseOverlay/PausePanel/RestartButton
+)
+@onready var quit_button: Button = (
+	$SafeFrame/PauseOverlay/PausePanel/QuitButton
+)
 
 
 func _ready() -> void:
 	_apply_static_translations()
+	_populate_resolution_options()
 	damage_value_start_position = damage_value_label.position
 	damage_flash.hide()
 	death_overlay.hide()
@@ -66,6 +97,7 @@ func _ready() -> void:
 	map_backdrop.hide()
 	minimap.exploration_changed.connect(_on_map_exploration_changed)
 	set_map_expanded(false)
+	apply_resolution_button.pressed.connect(_on_apply_resolution_pressed)
 	resume_button.pressed.connect(close_pause_menu)
 	restart_button.pressed.connect(_on_restart_pressed)
 	quit_button.pressed.connect(_on_quit_pressed)
@@ -82,6 +114,8 @@ func _apply_static_translations() -> void:
 	victory_title.text = tr("HUD_VICTORY_TITLE")
 	victory_hint.text = tr("HUD_VICTORY_HINT")
 	pause_title.text = tr("PAUSE_TITLE")
+	resolution_label.text = tr("PAUSE_RESOLUTION_LABEL")
+	apply_resolution_button.text = tr("PAUSE_RESOLUTION_APPLY")
 	resume_button.text = tr("PAUSE_RESUME")
 	restart_button.text = tr("PAUSE_RESTART")
 	quit_button.text = tr("PAUSE_QUIT")
@@ -93,7 +127,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if (
 			not pause_overlay.visible
 			and not death_overlay.visible
-			and not $VictoryOverlay.visible
+			and not $SafeFrame/VictoryOverlay.visible
 		):
 			set_map_expanded(not map_expanded)
 		return
@@ -120,10 +154,11 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func open_pause_menu() -> void:
-	if death_overlay.visible or $VictoryOverlay.visible:
+	if death_overlay.visible or $SafeFrame/VictoryOverlay.visible:
 		return
 
 	set_map_expanded(false)
+	_select_current_resolution()
 	pause_overlay.show()
 	get_tree().paused = true
 	resume_button.grab_focus()
@@ -132,6 +167,50 @@ func open_pause_menu() -> void:
 func close_pause_menu() -> void:
 	pause_overlay.hide()
 	get_tree().paused = false
+
+
+func _populate_resolution_options() -> void:
+	resolution_option.clear()
+	var presets: Array[Vector2i] = display_manager.get_resolution_presets()
+	for index in range(presets.size()):
+		resolution_option.add_item(display_manager.get_resolution_label(index))
+		resolution_option.set_item_metadata(index, presets[index])
+	_select_current_resolution()
+
+
+func _select_current_resolution() -> void:
+	if resolution_option.item_count == 0:
+		return
+	var current_resolution := DisplayServer.window_get_size()
+	resolution_option.select(
+		display_manager.find_closest_resolution_index(current_resolution)
+	)
+	_update_resolution_status()
+
+
+func _update_resolution_status() -> void:
+	if Engine.is_embedded_in_editor():
+		resolution_status.text = tr("PAUSE_RESOLUTION_EMBEDDED")
+		return
+
+	var current_resolution := DisplayServer.window_get_size()
+	resolution_status.text = tr("PAUSE_RESOLUTION_STATUS") % [
+		current_resolution.x,
+		current_resolution.y,
+	]
+
+
+func _on_apply_resolution_pressed() -> void:
+	var selected_index := resolution_option.selected
+	if selected_index < 0:
+		return
+
+	var resolution: Vector2i = resolution_option.get_item_metadata(
+		selected_index
+	)
+	if display_manager.set_windowed_resolution(resolution):
+		await get_tree().process_frame
+	_update_resolution_status()
 
 
 func set_map_expanded(value: bool) -> void:

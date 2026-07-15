@@ -58,7 +58,7 @@ func _run() -> void:
 
 	var room_count: int = floor_scene.get("generated_room_count")
 	_expect(room_count >= 8 and room_count <= 12, "room count must be 8..12")
-	var minimap := floor_scene.get_node("UI/MinimapPanel/Minimap")
+	var minimap := floor_scene.get_node("UI/SafeFrame/MinimapPanel/Minimap")
 	var floor_tiles := floor_scene.get_node("GeneratedMap/FloorTiles") as CanvasItem
 	var wall_tiles := floor_scene.get_node("GeneratedMap/WallTiles") as CanvasItem
 	_expect(
@@ -329,7 +329,7 @@ func _run() -> void:
 		)
 		_expect(
 			not floor_scene.get("is_transitioning")
-			and not floor_scene.get_node("UI/TransitionFade").visible,
+			and not floor_scene.get_node("UI/SafeFrame/TransitionFade").visible,
 			"room transition should restore gameplay without a black overlay"
 		)
 		_expect(

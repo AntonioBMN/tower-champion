@@ -19,16 +19,31 @@ func _run() -> void:
 	await process_frame
 
 	var hud := floor_scene.get_node("UI") as CombatHUD
-	var pause_overlay := hud.get_node("PauseOverlay") as ColorRect
-	var pause_title := hud.get_node("PauseOverlay/PausePanel/PauseTitle") as Label
+	var display_manager := root.get_node("DisplayManager")
+	var pause_overlay := hud.get_node("SafeFrame/PauseOverlay") as ColorRect
+	var pause_title := hud.get_node(
+		"SafeFrame/PauseOverlay/PausePanel/PauseTitle"
+	) as Label
+	var resolution_label := hud.get_node(
+		"SafeFrame/PauseOverlay/PausePanel/ResolutionLabel"
+	) as Label
+	var resolution_option := hud.get_node(
+		"SafeFrame/PauseOverlay/PausePanel/ResolutionOption"
+	) as OptionButton
+	var apply_resolution_button := hud.get_node(
+		"SafeFrame/PauseOverlay/PausePanel/ApplyResolutionButton"
+	) as Button
+	var resolution_status := hud.get_node(
+		"SafeFrame/PauseOverlay/PausePanel/ResolutionStatus"
+	) as Label
 	var resume_button := hud.get_node(
-		"PauseOverlay/PausePanel/ResumeButton"
+		"SafeFrame/PauseOverlay/PausePanel/ResumeButton"
 	) as Button
 	var restart_button := hud.get_node(
-		"PauseOverlay/PausePanel/RestartButton"
+		"SafeFrame/PauseOverlay/PausePanel/RestartButton"
 	) as Button
 	var quit_button := hud.get_node(
-		"PauseOverlay/PausePanel/QuitButton"
+		"SafeFrame/PauseOverlay/PausePanel/QuitButton"
 	) as Button
 
 	_expect(not paused, "scene tree should start unpaused")
@@ -37,11 +52,37 @@ func _run() -> void:
 	_expect(paused, "opening the pause menu should pause the scene tree")
 	_expect(pause_overlay.visible, "opening the pause menu should show its overlay")
 	_expect(pause_title.text == "GAME PAUSED", "pause title should be localized")
+	_expect(
+		resolution_label.text == "RESOLUTION"
+		and apply_resolution_button.text == "APPLY",
+		"pause menu should localize its resolution controls"
+	)
 	_expect(resume_button.text == "RESUME", "resume action should be localized")
+	var presets: Array[Vector2i] = display_manager.get_resolution_presets()
+	_expect(
+		resolution_option.item_count == presets.size(),
+		"pause menu should list every resolution test preset"
+	)
+	var listed_resolutions: Array[Vector2i] = []
+	for item_index in range(resolution_option.item_count):
+		listed_resolutions.append(
+			resolution_option.get_item_metadata(item_index)
+		)
+	_expect(
+		listed_resolutions.has(Vector2i(1024, 768))
+		and listed_resolutions.has(Vector2i(1280, 800))
+		and listed_resolutions.has(Vector2i(1600, 700)),
+		"resolution presets should cover 4:3, 16:10 and ultrawide"
+	)
+	_expect(
+		resolution_status.text.contains("Current:"),
+		"pause menu should report the active window resolution"
+	)
 	_expect(
 		restart_button.pressed.get_connections().size() == 1
-		and quit_button.pressed.get_connections().size() == 1,
-		"restart and quit buttons should be connected"
+		and quit_button.pressed.get_connections().size() == 1
+		and apply_resolution_button.pressed.get_connections().size() == 1,
+		"pause actions and resolution apply button should be connected"
 	)
 
 	resume_button.pressed.emit()
@@ -56,14 +97,14 @@ func _run() -> void:
 	hud._unhandled_input(pause_event)
 	_expect(not paused and not pause_overlay.visible, "pause action should resume")
 
-	hud.get_node("DeathOverlay").show()
+	hud.get_node("SafeFrame/DeathOverlay").show()
 	hud.open_pause_menu()
 	_expect(
 		not paused and not pause_overlay.visible,
 		"pause menu should stay disabled during death feedback"
 	)
-	hud.get_node("DeathOverlay").hide()
-	hud.get_node("VictoryOverlay").show()
+	hud.get_node("SafeFrame/DeathOverlay").hide()
+	hud.get_node("SafeFrame/VictoryOverlay").show()
 	hud.open_pause_menu()
 	_expect(
 		not paused and not pause_overlay.visible,

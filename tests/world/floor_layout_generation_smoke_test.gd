@@ -45,7 +45,7 @@ func _validate_layout(floor_scene: Node, seed_value: int) -> void:
 	var footprints: Dictionary = floor_scene.get("large_room_footprints")
 	var screen_room_size: Vector2i = floor_scene.call("_screen_room_size")
 	var occupied: Dictionary = {}
-	var minimap := floor_scene.get_node("UI/MinimapPanel/Minimap")
+	var minimap := floor_scene.get_node("UI/SafeFrame/MinimapPanel/Minimap")
 
 	_expect(
 		room_count >= 8 and room_count <= 12,

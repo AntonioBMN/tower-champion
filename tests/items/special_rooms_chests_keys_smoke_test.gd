@@ -22,7 +22,7 @@ func _run() -> void:
 	var inventory := player.get_node("RunInventory") as RunInventory
 	var treasure_room_index: int = floor_scene.get("treasure_room_index")
 	var room_types: Array = floor_scene.get("room_types")
-	var minimap := floor_scene.get_node("UI/MinimapPanel/Minimap")
+	var minimap := floor_scene.get_node("UI/SafeFrame/MinimapPanel/Minimap")
 
 	_expect(
 		room_types[treasure_room_index] == "treasure",
@@ -63,7 +63,8 @@ func _run() -> void:
 	await process_frame
 	_expect(inventory.keys == 1, "collected key should enter run inventory")
 	_expect(
-		floor_scene.get_node("UI/HealthPanel/KeyLabel").text == "KEYS: 1",
+		floor_scene.get_node("UI/SafeFrame/HealthPanel/KeyLabel").text
+		== "KEYS: 1",
 		"HUD should display the collected key"
 	)
 

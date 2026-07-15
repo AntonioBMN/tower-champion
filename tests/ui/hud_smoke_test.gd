@@ -21,32 +21,46 @@ func _run() -> void:
 	var hud := floor_scene.get_node("UI") as CombatHUD
 	var health := player.get_node("HealthComponent") as HealthComponent
 	var health_bar := floor_scene.get_node(
-		"UI/HealthPanel/HealthBar"
+		"UI/SafeFrame/HealthPanel/HealthBar"
 	) as ProgressBar
 	var health_label := floor_scene.get_node(
-		"UI/HealthPanel/HealthLabel"
+		"UI/SafeFrame/HealthPanel/HealthLabel"
 	) as Label
 	var invulnerability_label := floor_scene.get_node(
-		"UI/HealthPanel/InvulnerabilityLabel"
+		"UI/SafeFrame/HealthPanel/InvulnerabilityLabel"
 	) as Label
-	var death_overlay := floor_scene.get_node("UI/DeathOverlay") as ColorRect
+	var death_overlay := floor_scene.get_node(
+		"UI/SafeFrame/DeathOverlay"
+	) as ColorRect
 	var relic_list := floor_scene.get_node(
-		"UI/RelicPanel/RelicListLabel"
+		"UI/SafeFrame/RelicPanel/RelicListLabel"
 	) as Label
-	var key_label := floor_scene.get_node("UI/HealthPanel/KeyLabel") as Label
-	var relic_panel := floor_scene.get_node("UI/RelicPanel") as ColorRect
-	var debug_panel := floor_scene.get_node("UI/DebugPanel") as ColorRect
-	var room_info_panel := floor_scene.get_node("UI/RoomInfoPanel") as ColorRect
-	var map_backdrop := floor_scene.get_node("UI/MapBackdrop") as ColorRect
-	var minimap_panel := floor_scene.get_node("UI/MinimapPanel") as ColorRect
+	var key_label := floor_scene.get_node(
+		"UI/SafeFrame/HealthPanel/KeyLabel"
+	) as Label
+	var relic_panel := floor_scene.get_node(
+		"UI/SafeFrame/RelicPanel"
+	) as ColorRect
+	var debug_panel := floor_scene.get_node(
+		"UI/SafeFrame/DebugPanel"
+	) as ColorRect
+	var room_info_panel := floor_scene.get_node(
+		"UI/SafeFrame/RoomInfoPanel"
+	) as ColorRect
+	var map_backdrop := floor_scene.get_node(
+		"UI/SafeFrame/MapBackdrop"
+	) as ColorRect
+	var minimap_panel := floor_scene.get_node(
+		"UI/SafeFrame/MinimapPanel"
+	) as ColorRect
 	var minimap := floor_scene.get_node(
-		"UI/MinimapPanel/Minimap"
+		"UI/SafeFrame/MinimapPanel/Minimap"
 	) as FloorMinimap
 	var map_title := floor_scene.get_node(
-		"UI/MinimapPanel/TitleLabel"
+		"UI/SafeFrame/MinimapPanel/TitleLabel"
 	) as Label
 	var map_progress := floor_scene.get_node(
-		"UI/MinimapPanel/ProgressLabel"
+		"UI/SafeFrame/MinimapPanel/ProgressLabel"
 	) as Label
 
 	_expect(health.max_health == 90, "player should start with 90 maximum health")

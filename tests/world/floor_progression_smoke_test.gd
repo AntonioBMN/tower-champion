@@ -25,7 +25,7 @@ func _run() -> void:
 	var special_room_index: int = floor_scene.get("special_room_index")
 	var treasure_room_index: int = floor_scene.get("treasure_room_index")
 	var large_room_indices: Dictionary = floor_scene.get("large_room_indices")
-	var minimap := floor_scene.get_node("UI/MinimapPanel/Minimap")
+	var minimap := floor_scene.get_node("UI/SafeFrame/MinimapPanel/Minimap")
 
 	_expect(room_types[0] == "start", "first room should be the start room")
 	_expect(
@@ -152,7 +152,7 @@ func _run() -> void:
 		"entering the unlocked exit should complete the run"
 	)
 	_expect(
-		floor_scene.get_node("UI/VictoryOverlay").visible,
+		floor_scene.get_node("UI/SafeFrame/VictoryOverlay").visible,
 		"run completion should show the provisional victory screen"
 	)
 

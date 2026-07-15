@@ -17,17 +17,25 @@ func _run() -> void:
 	root.add_child(english_floor)
 	await process_frame
 	_expect(
-		english_floor.get_node("UI/HealthPanel/TitleLabel").text == "HEALTH",
+		english_floor.get_node("UI/SafeFrame/HealthPanel/TitleLabel").text
+		== "HEALTH",
 		"English should be available as the source locale"
 	)
 	_expect(
-		english_floor.get_node("UI/HealthPanel/KeyLabel").text == "KEYS: 0",
+		english_floor.get_node("UI/SafeFrame/HealthPanel/KeyLabel").text
+		== "KEYS: 0",
 		"dynamic HUD text should use the English locale"
 	)
 	_expect(
-		english_floor.get_node("UI/MinimapPanel/TitleLabel").text
+		english_floor.get_node("UI/SafeFrame/MinimapPanel/TitleLabel").text
 		== "FLOOR MAP",
 		"expanded map interface should use the English locale"
+	)
+	_expect(
+		english_floor.get_node(
+			"UI/SafeFrame/PauseOverlay/PausePanel/ResolutionLabel"
+		).text == "RESOLUTION",
+		"resolution menu should use the English source locale"
 	)
 	_expect(
 		english_floor.call("_room_type_display_name", "start") == "START",
@@ -41,17 +49,25 @@ func _run() -> void:
 	root.add_child(portuguese_floor)
 	await process_frame
 	_expect(
-		portuguese_floor.get_node("UI/HealthPanel/TitleLabel").text == "VIDA",
+		portuguese_floor.get_node("UI/SafeFrame/HealthPanel/TitleLabel").text
+		== "VIDA",
 		"Portuguese scene text should load from the locale file"
 	)
 	_expect(
-		portuguese_floor.get_node("UI/HealthPanel/KeyLabel").text == "CHAVES: 0",
+		portuguese_floor.get_node("UI/SafeFrame/HealthPanel/KeyLabel").text
+		== "CHAVES: 0",
 		"dynamic HUD text should support Portuguese"
 	)
 	_expect(
-		portuguese_floor.get_node("UI/MinimapPanel/TitleLabel").text
+		portuguese_floor.get_node("UI/SafeFrame/MinimapPanel/TitleLabel").text
 		== "MAPA DO ANDAR",
 		"expanded map interface should support Portuguese"
+	)
+	_expect(
+		portuguese_floor.get_node(
+			"UI/SafeFrame/PauseOverlay/PausePanel/ResolutionLabel"
+		).text == "RESOLUÇÃO",
+		"resolution menu should support Portuguese"
 	)
 	_expect(
 		portuguese_floor.call("_room_type_display_name", "start") == "INÍCIO",

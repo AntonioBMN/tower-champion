@@ -49,7 +49,9 @@ func _run() -> void:
 		"collected relic should remain registered during the run"
 	)
 	_expect(
-		floor_scene.get_node("UI/RelicPanel/RelicListLabel").text
+		floor_scene.get_node(
+			"UI/SafeFrame/RelicPanel/RelicListLabel"
+		).text
 		.contains(
 			TranslationServer.translate(
 				RELIC_CATALOG.get_relic(offered_relic_id)["name_key"]
@@ -102,11 +104,11 @@ func _run() -> void:
 		"duplicate relics should not apply twice"
 	)
 	_expect(
-		floor_scene.get_node("UI/RelicNotice").visible,
+		floor_scene.get_node("UI/SafeFrame/RelicNotice").visible,
 		"collecting a relic should show HUD feedback"
 	)
 	_expect(
-		floor_scene.get_node("UI/RelicPanel").visible,
+		floor_scene.get_node("UI/SafeFrame/RelicPanel").visible,
 		"relic list should only occupy HUD space after collecting a relic"
 	)
 

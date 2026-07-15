@@ -21,6 +21,10 @@ HUD_VICTORY_TITLE,FIRST FLOOR COMPLETE!,PRIMEIRO ANDAR CONCLUÍDO!
 HUD_VICTORY_DETAILS,Seed %d - %d rooms explored,Seed %d - %d salas exploradas
 HUD_VICTORY_HINT,Press R to start a new run,Pressione R para iniciar uma nova run
 PAUSE_TITLE,GAME PAUSED,JOGO PAUSADO
+PAUSE_RESOLUTION_LABEL,RESOLUTION,RESOLUÇÃO
+PAUSE_RESOLUTION_APPLY,APPLY,APLICAR
+PAUSE_RESOLUTION_STATUS,Windowed test | Current: %d x %d,Teste em janela | Atual: %d x %d
+PAUSE_RESOLUTION_EMBEDDED,Disable game embedding to resize,Desative o jogo incorporado para redimensionar
 PAUSE_RESUME,RESUME,CONTINUAR
 PAUSE_RESTART,RESTART RUN,REINICIAR RUN
 PAUSE_QUIT,QUIT GAME,SAIR DO JOGO

@@ -33,7 +33,7 @@ func _run() -> void:
 		"floor counter should include every complete room encounter"
 	)
 	_expect(
-		floor_scene.get_node_or_null("UI/WaveLabel") == null,
+		floor_scene.get_node_or_null("UI/SafeFrame/WaveLabel") == null,
 		"HUD should not contain wave feedback"
 	)
 
@@ -51,7 +51,7 @@ func _run() -> void:
 	var final_room_index: int = floor_scene.get("final_room_index")
 	var final_encounter: Array = encounters[final_room_index]
 	floor_scene.set("current_room_index", final_room_index)
-	floor_scene.get_node("UI/MinimapPanel/Minimap").call(
+	floor_scene.get_node("UI/SafeFrame/MinimapPanel/Minimap").call(
 		"visit_room", final_room_index
 	)
 	floor_scene.set("is_transitioning", true)

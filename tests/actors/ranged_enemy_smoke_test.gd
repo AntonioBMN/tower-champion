@@ -38,6 +38,15 @@ func _run() -> void:
 		"ranged enemy should use the slower attack cadence"
 	)
 	_expect(
+		is_equal_approx(float(ranged_enemy.get("entry_grace_duration")), 0.75)
+		and float(ranged_enemy.get("attack_grace_remaining")) > 0.0,
+		"ranged enemy should start with a safe room-entry grace period"
+	)
+	_expect(
+		is_equal_approx(float(ranged_enemy.get("attack_windup")), 0.3),
+		"ranged attacks should expose a readable wind-up"
+	)
+	_expect(
 		is_equal_approx(
 			ranged_enemy.get_node("ShootCooldown").wait_time,
 			float(ranged_enemy.get("attack_interval"))
@@ -55,9 +64,30 @@ func _run() -> void:
 		"ranged enemy should not shoot through walls"
 	)
 
+	ranged_enemy.set_physics_process(false)
 	line_of_sight_wall.queue_free()
 	await physics_frame
 	await physics_frame
+	ranged_enemy.call("_begin_attack")
+	await create_timer(0.1).timeout
+	_expect(
+		ranged_enemy.get("is_winding_up"),
+		"ranged enemy should enter a warning state before shooting"
+	)
+	_expect(
+		_find_projectile(world) == null,
+		"projectile should not exist during the attack warning"
+	)
+	_expect(
+		world.get_node_or_null("RangedAttackTelegraph") != null,
+		"attack warning should provide visual feedback"
+	)
+	await create_timer(0.25).timeout
+	_expect(
+		_find_projectile(world) != null,
+		"projectile should spawn after the warning finishes"
+	)
+	ranged_enemy.set_physics_process(true)
 	await create_timer(1.0).timeout
 
 	_expect(
@@ -82,6 +112,13 @@ func _run() -> void:
 
 func _on_ranged_enemy_died() -> void:
 	ranged_enemy_died = true
+
+
+func _find_projectile(world: Node) -> EnemyProjectile:
+	for child in world.get_children():
+		if child is EnemyProjectile:
+			return child
+	return null
 
 
 func _create_test_wall() -> StaticBody2D:

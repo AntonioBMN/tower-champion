@@ -3,15 +3,18 @@ HUD_ENEMY_COUNT,Enemies: %d,Inimigos: %d
 HUD_ROOM_SUMMARY,%s • %d/%d • %s,%s • %d/%d • %s
 HUD_SEED,Floor 1 • Seed: %d,Andar 1 • Seed: %d
 HUD_FLOOR_EXIT_UNLOCKED,EXIT UNLOCKED IN THE FINAL ROOM!,SAÍDA LIBERADA NA SALA FINAL!
-HUD_WAVE,WAVE %d / %d,ONDA %d / %d
 HUD_HEALTH_TITLE,HEALTH,VIDA
-HUD_MAP_TITLE,MAP,MAPA
+HUD_MAP_TITLE,FLOOR MAP,MAPA DO ANDAR
+HUD_MAP_PROGRESS,EXPLORED ROOMS: %d,SALAS EXPLORADAS: %d
+HUD_MAP_LEGEND,Blue start • Purple sanctuary • Gold treasure • Red final • Green exit,Azul início • Roxo santuário • Dourado tesouro • Vermelho final • Verde saída
+HUD_MAP_EXPAND_HINT,[M],[M]
+HUD_MAP_CLOSE_HINT,M: CLOSE,M: FECHAR
 HUD_INVULNERABLE,INVULNERABLE,INVULNERÁVEL
 HUD_KEY_COUNT,KEYS: %d,CHAVES: %d
 HUD_RELICS_TITLE,RUN RELICS,RELÍQUIAS DA RUN
 HUD_NONE,None,Nenhuma
 HUD_RELIC_ACQUIRED,RELIC ACQUIRED: %s,RELÍQUIA OBTIDA: %s
-HUD_CONTROLS,WASD: move | Mouse: aim | Click: attack | Esc: pause | R: new run,WASD: mover | Mouse: mirar | Clique: atacar | Esc: pausar | R: nova run
+HUD_CONTROLS,WASD: move | Mouse: aim | Click: attack | M: map | Esc: pause | R: new run,WASD: mover | Mouse: mirar | Clique: atacar | M: mapa | Esc: pausar | R: nova run
 HUD_DEATH_TITLE,YOU DIED,VOCÊ MORREU
 HUD_DEATH_HINT,Restarting the run...,Reiniciando a run...
 HUD_VICTORY_TITLE,FIRST FLOOR COMPLETE!,PRIMEIRO ANDAR CONCLUÍDO!
@@ -30,9 +33,8 @@ CHEST_TIER_SILVER,SILVER,DE PRATA
 CHEST_TIER_RED,RED,VERMELHO
 ROOM_STATUS_EXIT_OPEN,Exit open,Saída aberta
 ROOM_STATUS_CLEARED,Cleared,Limpa
-ROOM_STATUS_NEXT_WAVE,Next wave...,Próxima onda...
 ROOM_STATUS_WAITING,Encounter waiting,Encontro aguardando
-ROOM_STATUS_WAVE,Wave %d/%d • %d active,Onda %d/%d • %d ativos
+ROOM_STATUS_COMBAT,%d enemies,%d inimigos
 ROOM_TYPE_START,START,INÍCIO
 ROOM_TYPE_SANCTUARY,SANCTUARY,SANTUÁRIO
 ROOM_TYPE_TREASURE,TREASURE,TESOURO

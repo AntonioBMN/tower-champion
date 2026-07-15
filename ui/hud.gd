@@ -2,6 +2,14 @@ class_name CombatHUD
 extends CanvasLayer
 
 const RELIC_CATALOG = preload("res://items/relics/relic_catalog.gd")
+const COMPACT_MAP_PANEL_RECT := Rect2(-242.0, 12.0, 230.0, 150.0)
+const EXPANDED_MAP_PANEL_HALF_SIZE := Vector2(410.0, 250.0)
+const COMPACT_MAP_POSITION := Vector2(8.0, 8.0)
+const COMPACT_MAP_SIZE := Vector2(214.0, 134.0)
+const EXPANDED_MAP_POSITION := Vector2(24.0, 56.0)
+const EXPANDED_MAP_SIZE := Vector2(772.0, 366.0)
+const COMPACT_MAP_COLOR := Color(0.05, 0.06, 0.09, 0.88)
+const EXPANDED_MAP_COLOR := Color(0.035, 0.043, 0.065, 0.97)
 
 var health_component: HealthComponent
 var relic_component: RelicComponent
@@ -10,6 +18,7 @@ var damage_flash_tween: Tween
 var damage_value_tween: Tween
 var relic_notice_tween: Tween
 var damage_value_start_position: Vector2
+var map_expanded: bool = false
 
 @onready var health_bar: ProgressBar = $HealthPanel/HealthBar
 @onready var health_label: Label = $HealthPanel/HealthLabel
@@ -22,7 +31,13 @@ var damage_value_start_position: Vector2
 @onready var relic_notice: Label = $RelicNotice
 @onready var key_label: Label = $HealthPanel/KeyLabel
 @onready var health_title: Label = $HealthPanel/TitleLabel
+@onready var map_backdrop: ColorRect = $MapBackdrop
+@onready var minimap_panel: ColorRect = $MinimapPanel
 @onready var map_title: Label = $MinimapPanel/TitleLabel
+@onready var minimap: FloorMinimap = $MinimapPanel/Minimap
+@onready var map_progress_label: Label = $MinimapPanel/ProgressLabel
+@onready var map_legend_label: Label = $MinimapPanel/LegendLabel
+@onready var map_hint_label: Label = $MinimapPanel/HintLabel
 @onready var relic_title: Label = $RelicPanel/TitleLabel
 @onready var debug_panel: ColorRect = $DebugPanel
 @onready var controls_label: Label = $DebugPanel/ControlsLabel
@@ -48,6 +63,9 @@ func _ready() -> void:
 	relic_panel.hide()
 	debug_panel.hide()
 	pause_overlay.hide()
+	map_backdrop.hide()
+	minimap.exploration_changed.connect(_on_map_exploration_changed)
+	set_map_expanded(false)
 	resume_button.pressed.connect(close_pause_menu)
 	restart_button.pressed.connect(_on_restart_pressed)
 	quit_button.pressed.connect(_on_quit_pressed)
@@ -56,6 +74,7 @@ func _ready() -> void:
 func _apply_static_translations() -> void:
 	health_title.text = tr("HUD_HEALTH_TITLE")
 	map_title.text = tr("HUD_MAP_TITLE")
+	map_legend_label.text = tr("HUD_MAP_LEGEND")
 	relic_title.text = tr("HUD_RELICS_TITLE")
 	controls_label.text = tr("HUD_CONTROLS")
 	death_title.text = tr("HUD_DEATH_TITLE")
@@ -69,6 +88,16 @@ func _apply_static_translations() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("toggle_map"):
+		get_viewport().set_input_as_handled()
+		if (
+			not pause_overlay.visible
+			and not death_overlay.visible
+			and not $VictoryOverlay.visible
+		):
+			set_map_expanded(not map_expanded)
+		return
+
 	if event is InputEventKey:
 		var key_event := event as InputEventKey
 		if (
@@ -94,6 +123,7 @@ func open_pause_menu() -> void:
 	if death_overlay.visible or $VictoryOverlay.visible:
 		return
 
+	set_map_expanded(false)
 	pause_overlay.show()
 	get_tree().paused = true
 	resume_button.grab_focus()
@@ -102,6 +132,66 @@ func open_pause_menu() -> void:
 func close_pause_menu() -> void:
 	pause_overlay.hide()
 	get_tree().paused = false
+
+
+func set_map_expanded(value: bool) -> void:
+	map_expanded = value
+	map_backdrop.visible = value
+	map_title.visible = value
+	map_progress_label.visible = value
+	map_legend_label.visible = value
+	minimap_panel.color = (
+		EXPANDED_MAP_COLOR if value else COMPACT_MAP_COLOR
+	)
+
+	if value:
+		minimap_panel.anchor_left = 0.5
+		minimap_panel.anchor_top = 0.5
+		minimap_panel.anchor_right = 0.5
+		minimap_panel.anchor_bottom = 0.5
+		minimap_panel.offset_left = -EXPANDED_MAP_PANEL_HALF_SIZE.x
+		minimap_panel.offset_top = -EXPANDED_MAP_PANEL_HALF_SIZE.y
+		minimap_panel.offset_right = EXPANDED_MAP_PANEL_HALF_SIZE.x
+		minimap_panel.offset_bottom = EXPANDED_MAP_PANEL_HALF_SIZE.y
+		minimap.position = EXPANDED_MAP_POSITION
+		minimap.size = EXPANDED_MAP_SIZE
+		map_hint_label.position = Vector2(600.0, 466.0)
+		map_hint_label.size = Vector2(196.0, 20.0)
+		map_hint_label.text = tr("HUD_MAP_CLOSE_HINT")
+	else:
+		minimap_panel.anchor_left = 1.0
+		minimap_panel.anchor_top = 0.0
+		minimap_panel.anchor_right = 1.0
+		minimap_panel.anchor_bottom = 0.0
+		minimap_panel.offset_left = COMPACT_MAP_PANEL_RECT.position.x
+		minimap_panel.offset_top = COMPACT_MAP_PANEL_RECT.position.y
+		minimap_panel.offset_right = COMPACT_MAP_PANEL_RECT.end.x
+		minimap_panel.offset_bottom = COMPACT_MAP_PANEL_RECT.end.y
+		minimap.position = COMPACT_MAP_POSITION
+		minimap.size = COMPACT_MAP_SIZE
+		map_hint_label.position = Vector2(180.0, 126.0)
+		map_hint_label.size = Vector2(34.0, 18.0)
+		map_hint_label.text = tr("HUD_MAP_EXPAND_HINT")
+
+	minimap.set_expanded(value)
+	_update_map_progress()
+
+
+func _update_map_progress() -> void:
+	map_progress_label.text = (
+		tr("HUD_MAP_PROGRESS") % minimap.get_visited_room_count()
+	)
+
+
+func _on_map_exploration_changed(
+	_visited_count: int,
+	_total_count: int
+) -> void:
+	_update_map_progress()
+
+
+func is_map_expanded() -> bool:
+	return map_expanded
 
 
 func _on_restart_pressed() -> void:
@@ -304,6 +394,7 @@ func _on_invulnerability_ended() -> void:
 
 
 func _on_died() -> void:
+	set_map_expanded(false)
 	close_pause_menu()
 	invulnerability_label.hide()
 	death_overlay.modulate.a = 0.0

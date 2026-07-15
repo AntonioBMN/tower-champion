@@ -26,10 +26,12 @@ script = ExtResource("1_floor")
 z_index = -10
 
 [node name="FloorTiles" type="TileMapLayer" parent="GeneratedMap"]
+self_modulate = Color(0.52, 0.55, 0.64, 1)
 texture_filter = 1
 scale = Vector2(2, 2)
 
 [node name="WallTiles" type="TileMapLayer" parent="GeneratedMap"]
+self_modulate = Color(0.66, 0.68, 0.76, 1)
 z_index = 1
 texture_filter = 1
 scale = Vector2(2, 2)
@@ -105,21 +107,6 @@ text = "HUD_FLOOR_EXIT_UNLOCKED"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="WaveLabel" type="Label" parent="UI"]
-visible = false
-offset_left = 426.0
-offset_top = 44.0
-offset_right = 726.0
-offset_bottom = 96.0
-theme_override_colors/font_color = Color(0.86, 0.56, 1, 1)
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
-theme_override_constants/shadow_offset_x = 2
-theme_override_constants/shadow_offset_y = 3
-theme_override_font_sizes/font_size = 30
-text = "HUD_WAVE"
-horizontal_alignment = 1
-vertical_alignment = 1
-
 [node name="HealthPanel" type="ColorRect" parent="UI"]
 offset_left = 12.0
 offset_top = 12.0
@@ -161,7 +148,19 @@ text = "5 / 5"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="MapBackdrop" type="ColorRect" parent="UI"]
+visible = false
+z_index = 4
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.012, 0.016, 0.026, 0.7)
+
 [node name="MinimapPanel" type="ColorRect" parent="UI"]
+z_index = 5
 anchor_left = 1.0
 anchor_right = 1.0
 offset_left = -242.0
@@ -173,13 +172,24 @@ mouse_filter = 2
 
 [node name="TitleLabel" type="Label" parent="UI/MinimapPanel"]
 visible = false
-offset_left = 12.0
-offset_top = 7.0
-offset_right = 110.0
-offset_bottom = 28.0
-theme_override_colors/font_color = Color(0.7, 0.73, 0.8, 1)
-theme_override_font_sizes/font_size = 13
+offset_left = 24.0
+offset_top = 16.0
+offset_right = 340.0
+offset_bottom = 44.0
+theme_override_colors/font_color = Color(0.94, 0.78, 0.32, 1)
+theme_override_font_sizes/font_size = 18
 text = "HUD_MAP_TITLE"
+
+[node name="ProgressLabel" type="Label" parent="UI/MinimapPanel"]
+visible = false
+offset_left = 510.0
+offset_top = 18.0
+offset_right = 796.0
+offset_bottom = 42.0
+theme_override_colors/font_color = Color(0.68, 0.72, 0.8, 1)
+theme_override_font_sizes/font_size = 13
+text = "HUD_MAP_PROGRESS"
+horizontal_alignment = 2
 
 [node name="Minimap" type="Control" parent="UI/MinimapPanel"]
 layout_mode = 0
@@ -190,6 +200,27 @@ offset_bottom = 142.0
 clip_contents = true
 mouse_filter = 2
 script = ExtResource("4_minimap")
+
+[node name="LegendLabel" type="Label" parent="UI/MinimapPanel"]
+visible = false
+offset_left = 24.0
+offset_top = 432.0
+offset_right = 796.0
+offset_bottom = 458.0
+theme_override_colors/font_color = Color(0.7, 0.73, 0.8, 1)
+theme_override_font_sizes/font_size = 12
+text = "HUD_MAP_LEGEND"
+horizontal_alignment = 1
+
+[node name="HintLabel" type="Label" parent="UI/MinimapPanel"]
+offset_left = 180.0
+offset_top = 126.0
+offset_right = 214.0
+offset_bottom = 144.0
+theme_override_colors/font_color = Color(0.55, 0.59, 0.68, 1)
+theme_override_font_sizes/font_size = 10
+text = "HUD_MAP_EXPAND_HINT"
+horizontal_alignment = 2
 
 [node name="InvulnerabilityLabel" type="Label" parent="UI/HealthPanel"]
 visible = false
@@ -296,6 +327,7 @@ horizontal_alignment = 1
 
 [node name="DamageFlash" type="ColorRect" parent="UI"]
 visible = false
+z_index = 10
 offset_right = 1152.0
 offset_bottom = 648.0
 mouse_filter = 2
@@ -303,6 +335,7 @@ color = Color(0.82, 0.02, 0.02, 0.32)
 
 [node name="DeathOverlay" type="ColorRect" parent="UI"]
 visible = false
+z_index = 10
 offset_right = 1152.0
 offset_bottom = 648.0
 mouse_filter = 2
@@ -330,6 +363,7 @@ horizontal_alignment = 1
 
 [node name="VictoryOverlay" type="ColorRect" parent="UI"]
 visible = false
+z_index = 10
 offset_right = 1152.0
 offset_bottom = 648.0
 mouse_filter = 2
@@ -367,6 +401,7 @@ horizontal_alignment = 1
 
 [node name="TransitionFade" type="ColorRect" parent="UI"]
 visible = false
+z_index = 10
 offset_right = 1152.0
 offset_bottom = 648.0
 mouse_filter = 2
@@ -374,6 +409,7 @@ color = Color(0.015, 0.018, 0.025, 1)
 
 [node name="PauseOverlay" type="ColorRect" parent="UI"]
 visible = false
+z_index = 10
 process_mode = 3
 anchors_preset = 15
 anchor_right = 1.0

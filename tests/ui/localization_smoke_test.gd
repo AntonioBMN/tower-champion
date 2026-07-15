@@ -25,6 +25,11 @@ func _run() -> void:
 		"dynamic HUD text should use the English locale"
 	)
 	_expect(
+		english_floor.get_node("UI/MinimapPanel/TitleLabel").text
+		== "FLOOR MAP",
+		"expanded map interface should use the English locale"
+	)
+	_expect(
 		english_floor.call("_room_type_display_name", "start") == "START",
 		"dynamic room labels should use translation keys"
 	)
@@ -42,6 +47,11 @@ func _run() -> void:
 	_expect(
 		portuguese_floor.get_node("UI/HealthPanel/KeyLabel").text == "CHAVES: 0",
 		"dynamic HUD text should support Portuguese"
+	)
+	_expect(
+		portuguese_floor.get_node("UI/MinimapPanel/TitleLabel").text
+		== "MAPA DO ANDAR",
+		"expanded map interface should support Portuguese"
 	)
 	_expect(
 		portuguese_floor.call("_room_type_display_name", "start") == "INÍCIO",

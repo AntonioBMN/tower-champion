@@ -28,6 +28,9 @@ const FLOOR_EXIT_SCENE: PackedScene = preload(
 )
 const COMBAT_FEEDBACK = preload("res://combat/combat_feedback.gd")
 const RELIC_CATALOG = preload("res://items/relics/relic_catalog.gd")
+const ROOM_SLIDE_TRANSITION = preload(
+	"res://ui/transitions/room_slide_transition.gd"
+)
 const DOOR_LOCKED_COLOR := Color(0.75, 0.16, 0.12, 0.95)
 const DOOR_OPEN_COLOR := Color(0.95, 0.67, 0.2, 0.95)
 const ROOM_TYPE_START := "start"
@@ -37,15 +40,25 @@ const ROOM_TYPE_TREASURE := "treasure"
 const ROOM_TYPE_FINAL := "final"
 const ENEMY_TYPE_MELEE := "melee"
 const ENEMY_TYPE_RANGED := "ranged"
+const RANGED_ENTRY_STAGGER := 0.3
 const LARGE_ROOM_CHANCE := 0.22
 const MAXIMUM_LARGE_ROOMS := 2
-const MINIMUM_SCREEN_ROOM_SIZE := Vector2i(16, 10)
+const MINIMUM_GRAPH_DEAD_ENDS := 4
+const MAXIMUM_GRAPH_GENERATION_ATTEMPTS := 64
+const MAXIMUM_GRAPH_RADIUS := 4
+const CAMERA_ROOM_MARGIN_CELLS := Vector2i(2, 2)
+const MINIMUM_SCREEN_ROOM_SIZE := Vector2i(12, 7)
+const DOOR_EDGE_MARGIN_RATIO := 0.18
+const DOOR_TANGENT_VARIANTS := [0.28, 0.72]
 
 @export_group("Generation")
 @export var randomize_layout: bool = true
 @export var fixed_seed: int = 12345
-@export_range(5, 8, 1) var minimum_rooms: int = 5
-@export_range(5, 8, 1) var maximum_rooms: int = 8
+@export_range(6, 16, 1) var minimum_rooms: int = 8
+@export_range(6, 16, 1) var maximum_rooms: int = 12
+
+@export_group("Room Transition")
+@export_range(0.2, 0.8, 0.01) var room_transition_duration: float = 0.42
 
 @export_group("Room Rewards")
 @export_range(0.0, 1.0, 0.05) var health_drop_chance: float = 0.35
@@ -60,9 +73,6 @@ const MINIMUM_SCREEN_ROOM_SIZE := Vector2i(16, 10)
 @export_range(0.0, 1.0, 0.05) var wood_chest_health_chance: float = 0.55
 @export_range(0.0, 1.0, 0.05) var upgraded_rarity_chance: float = 0.8
 
-@export_group("Encounter Waves")
-@export_range(0.05, 2.0, 0.05) var wave_spawn_delay: float = 0.55
-
 var rng := RandomNumberGenerator.new()
 var generation_seed: int
 var generated_room_count: int
@@ -72,17 +82,16 @@ var room_grid_positions: Array[Vector2i] = []
 var room_bounds: Array[Rect2i] = []
 var room_cells: Array = []
 var large_room_indices: Dictionary = {}
+var large_room_footprints: Dictionary = {}
 var room_connections: Array = []
 var room_door_cells: Array = []
+var room_door_ratios: Array = []
 var room_types: Array[String] = []
 var room_distances: Array[int] = []
 var open_edges: Dictionary = {}
 var obstacle_rects: Array[Rect2i] = []
 var enemy_spawn_cells: Array = []
-var room_encounter_waves: Array = []
-var room_current_wave: Array[int] = []
-var room_active_enemies: Array[int] = []
-var room_wave_transitioning: Array[bool] = []
+var room_encounters: Array = []
 var room_encounter_complete: Array[bool] = []
 var room_enemies_remaining: Array[int] = []
 var spawned_rooms: Dictionary = {}
@@ -103,6 +112,9 @@ var run_is_complete: bool = false
 var floor_exit: Area2D
 var floor_exit_cell: Vector2i
 var is_transitioning: bool = false
+var last_transition_used_slide: bool = false
+var last_transition_direction := Vector2i.ZERO
+var active_transition_overlay
 
 @onready var floor_tiles: TileMapLayer = $GeneratedMap/FloorTiles
 @onready var wall_tiles: TileMapLayer = $GeneratedMap/WallTiles
@@ -116,6 +128,7 @@ var is_transitioning: bool = false
 @onready var chests: Node2D = $Chests
 @onready var exits: Node2D = $Exits
 @onready var player: CharacterBody2D = $Player
+@onready var player_sprite: AnimatedSprite2D = $Player/AnimatedSprite2D
 @onready var camera: Camera2D = $Player/Camera2D
 @onready var hud = $UI
 @onready var enemy_counter_label: Label = (
@@ -124,7 +137,6 @@ var is_transitioning: bool = false
 @onready var room_label: Label = $UI/RoomInfoPanel/RoomLabel
 @onready var seed_label: Label = $UI/DebugPanel/SeedLabel
 @onready var floor_cleared_label: Label = $UI/FloorClearedLabel
-@onready var wave_label: Label = $UI/WaveLabel
 @onready var transition_fade: ColorRect = $UI/TransitionFade
 @onready var victory_overlay: ColorRect = $UI/VictoryOverlay
 @onready var victory_details: Label = $UI/VictoryOverlay/VictoryDetails
@@ -148,7 +160,15 @@ func _ready() -> void:
 		obstacle_rects,
 		player,
 		enemies,
-		CELL_SIZE
+		CELL_SIZE,
+		{
+			"health": pickups,
+			"key": keys,
+			"relic": relics,
+			"chest": chests,
+		},
+		large_room_footprints,
+		room_door_ratios
 	)
 	minimap.visit_room(0)
 	_validate_floor()
@@ -161,7 +181,6 @@ func _ready() -> void:
 
 	transition_fade.hide()
 	victory_overlay.hide()
-	wave_label.hide()
 	floor_cleared_label.hide()
 	seed_label.text = tr("HUD_SEED") % generation_seed
 	_spawn_room_enemies(0)
@@ -213,17 +232,16 @@ func _generate_floor() -> void:
 	room_bounds.clear()
 	room_cells.clear()
 	large_room_indices.clear()
+	large_room_footprints.clear()
 	room_connections.clear()
 	room_door_cells.clear()
+	room_door_ratios.clear()
 	room_types.clear()
 	room_distances.clear()
 	open_edges.clear()
 	obstacle_rects.clear()
 	enemy_spawn_cells.clear()
-	room_encounter_waves.clear()
-	room_current_wave.clear()
-	room_active_enemies.clear()
-	room_wave_transitioning.clear()
+	room_encounters.clear()
 	room_encounter_complete.clear()
 	room_enemies_remaining.clear()
 	spawned_rooms.clear()
@@ -253,51 +271,192 @@ func _generate_floor() -> void:
 
 
 func _generate_room_graph() -> void:
-	var occupied: Dictionary = {Vector2i.ZERO: 0}
-	room_grid_positions.append(Vector2i.ZERO)
-	room_connections.append({})
+	var best_positions: Array[Vector2i] = []
+	var best_connections: Array = []
+	var best_score := -INF
+	var required_dead_ends := mini(
+		MINIMUM_GRAPH_DEAD_ENDS,
+		generated_room_count - 1
+	)
 
-	while room_grid_positions.size() < generated_room_count:
-		var expandable_rooms: Array[int] = []
+	for _attempt in range(MAXIMUM_GRAPH_GENERATION_ATTEMPTS):
+		var candidate := _build_room_graph_candidate()
+		var candidate_positions: Array[Vector2i] = candidate["positions"]
+		var candidate_connections: Array = candidate["connections"]
+		if candidate_positions.size() != generated_room_count:
+			continue
 
-		for room_index in range(room_grid_positions.size()):
-			if not _free_directions(room_grid_positions[room_index], occupied).is_empty():
-				expandable_rooms.append(room_index)
-
-		var parent_index := expandable_rooms[
-			rng.randi_range(0, expandable_rooms.size() - 1)
-		]
-		var free_directions := _free_directions(
-			room_grid_positions[parent_index],
-			occupied
+		var dead_end_count := _count_graph_dead_ends(candidate_connections)
+		var maximum_distance := _maximum_graph_distance(candidate_connections)
+		var footprint_area := _graph_footprint_area(candidate_positions)
+		var score := (
+			(10000.0 if dead_end_count >= required_dead_ends else 0.0)
+			+ maximum_distance * 100.0
+			+ mini(dead_end_count, required_dead_ends) * 20.0
+			- footprint_area * 1.5
 		)
-		var direction: Vector2i = free_directions[
-			rng.randi_range(0, free_directions.size() - 1)
-		]
-		var new_position := room_grid_positions[parent_index] + direction
-		var new_index := room_grid_positions.size()
 
-		room_grid_positions.append(new_position)
-		room_connections.append({})
+		if score > best_score:
+			best_score = score
+			best_positions.assign(candidate_positions)
+			best_connections = candidate_connections.duplicate(true)
+
+		if (
+			dead_end_count >= required_dead_ends
+			and maximum_distance >= 3
+		):
+			break
+
+	room_grid_positions.assign(best_positions)
+	room_connections = best_connections.duplicate(true)
+
+
+func _build_room_graph_candidate() -> Dictionary:
+	var positions: Array[Vector2i] = [Vector2i.ZERO]
+	var connections: Array = [{}]
+	var occupied: Dictionary = {Vector2i.ZERO: 0}
+
+	while positions.size() < generated_room_count:
+		var placement_candidates: Array[Dictionary] = []
+
+		for parent_index in range(positions.size()):
+			if connections[parent_index].size() >= 4:
+				continue
+
+			for direction in _cardinal_directions():
+				var new_position := positions[parent_index] + direction
+				if (
+					occupied.has(new_position)
+					or absi(new_position.x) > MAXIMUM_GRAPH_RADIUS
+					or absi(new_position.y) > MAXIMUM_GRAPH_RADIUS
+				):
+					continue
+
+				var adjacent_rooms := _occupied_neighbor_count(
+					new_position,
+					occupied
+				)
+				if adjacent_rooms > 2:
+					continue
+
+				var parent_degree: int = connections[parent_index].size()
+				var weight := 6.0 if adjacent_rooms == 1 else 1.5
+				match parent_degree:
+					0:
+						weight += 5.0
+					1:
+						weight += 6.0
+					2:
+						weight += 3.0
+					3:
+						weight += 1.0
+
+				var radius := maxi(
+					absi(new_position.x),
+					absi(new_position.y)
+				)
+				if radius == MAXIMUM_GRAPH_RADIUS:
+					weight *= 0.35
+
+				placement_candidates.append({
+					"parent": parent_index,
+					"direction": direction,
+					"position": new_position,
+					"weight": weight,
+				})
+
+		if placement_candidates.is_empty():
+			break
+
+		var selected := _choose_weighted_graph_candidate(
+			placement_candidates
+		)
+		var parent_index: int = selected["parent"]
+		var direction: Vector2i = selected["direction"]
+		var new_position: Vector2i = selected["position"]
+		var new_index := positions.size()
+		positions.append(new_position)
+		connections.append({})
 		occupied[new_position] = new_index
-		room_connections[parent_index][direction] = new_index
-		room_connections[new_index][-direction] = parent_index
+		connections[parent_index][direction] = new_index
+		connections[new_index][-direction] = parent_index
 
-	# Occasionally add a loop while preserving full connectivity.
-	for room_index in range(room_grid_positions.size()):
-		for direction in [Vector2i.RIGHT, Vector2i.DOWN]:
-			var neighbor_position: Vector2i = (
-				room_grid_positions[room_index] + direction
-			)
+	return {
+		"positions": positions,
+		"connections": connections,
+	}
 
-			if (
-				occupied.has(neighbor_position)
-				and not room_connections[room_index].has(direction)
-				and rng.randf() < 0.28
-			):
-				var neighbor_index: int = occupied[neighbor_position]
-				room_connections[room_index][direction] = neighbor_index
-				room_connections[neighbor_index][-direction] = room_index
+
+func _choose_weighted_graph_candidate(
+	candidates: Array[Dictionary]
+) -> Dictionary:
+	var total_weight := 0.0
+	for candidate in candidates:
+		total_weight += float(candidate["weight"])
+
+	var roll := rng.randf_range(0.0, total_weight)
+	for candidate in candidates:
+		roll -= float(candidate["weight"])
+		if roll <= 0.0:
+			return candidate
+
+	return candidates.back()
+
+
+func _occupied_neighbor_count(
+	position: Vector2i,
+	occupied: Dictionary
+) -> int:
+	var count := 0
+	for direction in _cardinal_directions():
+		if occupied.has(position + direction):
+			count += 1
+	return count
+
+
+func _count_graph_dead_ends(connections: Array) -> int:
+	var count := 0
+	for room_index in range(1, connections.size()):
+		if connections[room_index].size() == 1:
+			count += 1
+	return count
+
+
+func _maximum_graph_distance(connections: Array) -> int:
+	var distances: Array[int] = []
+	distances.resize(connections.size())
+	distances.fill(-1)
+	distances[0] = 0
+	var pending: Array[int] = [0]
+	var pending_index := 0
+
+	while pending_index < pending.size():
+		var room_index := pending[pending_index]
+		pending_index += 1
+		for destination in connections[room_index].values():
+			if distances[destination] >= 0:
+				continue
+			distances[destination] = distances[room_index] + 1
+			pending.append(destination)
+
+	return distances.max()
+
+
+func _graph_footprint_area(positions: Array[Vector2i]) -> int:
+	var minimum := positions[0]
+	var maximum := positions[0]
+	for position in positions:
+		minimum = Vector2i(
+			mini(minimum.x, position.x),
+			mini(minimum.y, position.y)
+		)
+		maximum = Vector2i(
+			maxi(maximum.x, position.x),
+			maxi(maximum.y, position.y)
+		)
+
+	var footprint_size := maximum - minimum + Vector2i.ONE
+	return footprint_size.x * footprint_size.y
 
 
 func _assign_room_roles() -> void:
@@ -348,9 +507,7 @@ func _assign_room_roles() -> void:
 			if room_index != final_room_index:
 				special_candidates.append(room_index)
 
-	special_room_index = special_candidates[
-		rng.randi_range(0, special_candidates.size() - 1)
-	]
+	special_room_index = _choose_farthest_room(special_candidates)
 	room_types[special_room_index] = ROOM_TYPE_SPECIAL
 
 	var treasure_candidates: Array[int] = []
@@ -365,20 +522,24 @@ func _assign_room_roles() -> void:
 			if room_index not in [final_room_index, special_room_index]:
 				treasure_candidates.append(room_index)
 
-	treasure_room_index = treasure_candidates[
-		rng.randi_range(0, treasure_candidates.size() - 1)
-	]
+	treasure_room_index = _choose_farthest_room(treasure_candidates)
 	room_types[treasure_room_index] = ROOM_TYPE_TREASURE
 
 
-func _free_directions(position: Vector2i, occupied: Dictionary) -> Array[Vector2i]:
-	var result: Array[Vector2i] = []
+func _choose_farthest_room(candidates: Array[int]) -> int:
+	var farthest_distance := -1
+	var farthest_candidates: Array[int] = []
+	for room_index in candidates:
+		var distance := room_distances[room_index]
+		if distance > farthest_distance:
+			farthest_distance = distance
+			farthest_candidates.assign([room_index])
+		elif distance == farthest_distance:
+			farthest_candidates.append(room_index)
 
-	for direction in _cardinal_directions():
-		if not occupied.has(position + direction):
-			result.append(direction)
-
-	return result
+	return farthest_candidates[
+		rng.randi_range(0, farthest_candidates.size() - 1)
+	]
 
 
 func _cardinal_directions() -> Array[Vector2i]:
@@ -397,20 +558,18 @@ func _generate_room_shapes() -> void:
 		)
 		var rect := Rect2i(center - size / 2, size)
 		room_bounds.append(rect)
-
-		match room_index % 5:
-			2:
-				_fill_l_room(room_index, rect)
-			3:
-				_fill_cross_room(room_index, rect)
-			_:
-				_fill_room_rect(room_index, rect)
+		_fill_room_rect(room_index, rect)
 
 
 func _select_large_rooms() -> void:
 	var candidates: Array[int] = []
+	var reserved_map_cells: Dictionary = {}
+	for position in room_grid_positions:
+		reserved_map_cells[position] = true
 
 	for room_index in range(1, generated_room_count):
+		if room_types[room_index] in [ROOM_TYPE_SPECIAL, ROOM_TYPE_TREASURE]:
+			continue
 		candidates.append(room_index)
 
 	for candidate_index in range(candidates.size() - 1, 0, -1):
@@ -423,33 +582,134 @@ func _select_large_rooms() -> void:
 			large_room_indices.size() < MAXIMUM_LARGE_ROOMS
 			and rng.randf() < LARGE_ROOM_CHANCE
 		):
-			large_room_indices[room_index] = true
+			_try_select_large_room(
+				room_index,
+				reserved_map_cells,
+				large_room_indices.is_empty()
+			)
 
 	# Every floor has one standout room without letting large rooms dominate it.
-	if large_room_indices.is_empty() and not candidates.is_empty():
-		large_room_indices[candidates[0]] = true
+	if large_room_indices.is_empty():
+		for room_index in candidates:
+			if _try_select_large_room(room_index, reserved_map_cells, true):
+				break
+
+
+func _try_select_large_room(
+	room_index: int,
+	reserved_map_cells: Dictionary,
+	prefer_quadruple: bool
+) -> bool:
+	var footprint := _find_large_room_footprint(
+		room_index,
+		reserved_map_cells,
+		prefer_quadruple
+	)
+	if footprint.size == Vector2i.ZERO:
+		return false
+
+	large_room_indices[room_index] = true
+	large_room_footprints[room_index] = footprint
+	var anchor := room_grid_positions[room_index]
+	for y in range(footprint.size.y):
+		for x in range(footprint.size.x):
+			reserved_map_cells[
+				anchor + footprint.position + Vector2i(x, y)
+			] = true
+	return true
+
+
+func _find_large_room_footprint(
+	room_index: int,
+	reserved_map_cells: Dictionary,
+	prefer_quadruple: bool
+) -> Rect2i:
+	var quadruple_footprints: Array[Rect2i] = [
+		Rect2i(Vector2i.ZERO, Vector2i(2, 2)),
+		Rect2i(Vector2i(-1, 0), Vector2i(2, 2)),
+		Rect2i(Vector2i(0, -1), Vector2i(2, 2)),
+		Rect2i(Vector2i(-1, -1), Vector2i(2, 2)),
+	]
+	var double_footprints: Array[Rect2i] = [
+		Rect2i(Vector2i.ZERO, Vector2i(2, 1)),
+		Rect2i(Vector2i(-1, 0), Vector2i(2, 1)),
+		Rect2i(Vector2i.ZERO, Vector2i(1, 2)),
+		Rect2i(Vector2i(0, -1), Vector2i(1, 2)),
+	]
+	_shuffle_rects(quadruple_footprints)
+	_shuffle_rects(double_footprints)
+
+	if prefer_quadruple:
+		for footprint in quadruple_footprints:
+			if _map_footprint_is_available(
+				room_index,
+				footprint,
+				reserved_map_cells
+			):
+				return footprint
+
+	for footprint in double_footprints:
+		if _map_footprint_is_available(
+			room_index,
+			footprint,
+			reserved_map_cells
+		):
+			return footprint
+
+	return Rect2i()
+
+
+func _map_footprint_is_available(
+	room_index: int,
+	footprint: Rect2i,
+	reserved_map_cells: Dictionary
+) -> bool:
+	var anchor := room_grid_positions[room_index]
+	for y in range(footprint.size.y):
+		for x in range(footprint.size.x):
+			var map_cell := (
+				anchor + footprint.position + Vector2i(x, y)
+			)
+			if map_cell == anchor:
+				continue
+			if reserved_map_cells.has(map_cell):
+				return false
+	return true
+
+
+func _shuffle_rects(values: Array[Rect2i]) -> void:
+	for value_index in range(values.size() - 1, 0, -1):
+		var swap_index := rng.randi_range(0, value_index)
+		var value := values[value_index]
+		values[value_index] = values[swap_index]
+		values[swap_index] = value
 
 
 func _room_size(room_index: int) -> Vector2i:
 	var screen_size := _screen_room_size()
 
 	if large_room_indices.has(room_index):
-		return Vector2i(
-			screen_size.x + rng.randi_range(3, 6),
-			screen_size.y + rng.randi_range(2, 4)
-		)
+		var footprint: Rect2i = large_room_footprints[room_index]
+		return screen_size * footprint.size
 
-	return Vector2i(
-		screen_size.x - rng.randi_range(0, 2),
-		screen_size.y - rng.randi_range(0, 1)
-	)
+	return screen_size
 
 
 func _screen_room_size() -> Vector2i:
 	var viewport_size := get_viewport_rect().size
+	var viewport_cells := Vector2i(
+		floori(viewport_size.x / CELL_SIZE),
+		floori(viewport_size.y / CELL_SIZE)
+	)
 	return Vector2i(
-		maxi(MINIMUM_SCREEN_ROOM_SIZE.x, roundi(viewport_size.x / CELL_SIZE)),
-		maxi(MINIMUM_SCREEN_ROOM_SIZE.y, roundi(viewport_size.y / CELL_SIZE))
+		maxi(
+			MINIMUM_SCREEN_ROOM_SIZE.x,
+			viewport_cells.x - CAMERA_ROOM_MARGIN_CELLS.x
+		),
+		maxi(
+			MINIMUM_SCREEN_ROOM_SIZE.y,
+			viewport_cells.y - CAMERA_ROOM_MARGIN_CELLS.y
+		)
 	)
 
 
@@ -459,45 +719,6 @@ func _fill_room_rect(room_index: int, rect: Rect2i) -> void:
 			_add_room_cell(room_index, Vector2i(x, y))
 
 
-func _fill_l_room(room_index: int, rect: Rect2i) -> void:
-	var upper_height := maxi(7, int(rect.size.y * 0.58))
-	var lower_width := maxi(11, int(rect.size.x * 0.62))
-
-	_fill_room_rect(
-		room_index,
-		Rect2i(rect.position, Vector2i(rect.size.x, upper_height))
-	)
-	_fill_room_rect(
-		room_index,
-		Rect2i(
-			rect.position + Vector2i(0, upper_height),
-			Vector2i(lower_width, rect.size.y - upper_height)
-		)
-	)
-
-
-func _fill_cross_room(room_index: int, rect: Rect2i) -> void:
-	var vertical_width := maxi(12, int(rect.size.x * 0.62))
-	var horizontal_height := maxi(8, int(rect.size.y * 0.62))
-	var vertical_x := rect.position.x + int((rect.size.x - vertical_width) * 0.5)
-	var horizontal_y := rect.position.y + int((rect.size.y - horizontal_height) * 0.5)
-
-	_fill_room_rect(
-		room_index,
-		Rect2i(
-			Vector2i(vertical_x, rect.position.y),
-			Vector2i(vertical_width, rect.size.y)
-		)
-	)
-	_fill_room_rect(
-		room_index,
-		Rect2i(
-			Vector2i(rect.position.x, horizontal_y),
-			Vector2i(rect.size.x, horizontal_height)
-		)
-	)
-
-
 func _add_room_cell(room_index: int, cell: Vector2i) -> void:
 	room_cells[room_index][cell] = true
 	floor_cells[cell] = true
@@ -505,23 +726,141 @@ func _add_room_cell(room_index: int, cell: Vector2i) -> void:
 
 func _configure_room_doors() -> void:
 	room_door_cells.resize(generated_room_count)
+	room_door_ratios.resize(generated_room_count)
 
 	for room_index in range(generated_room_count):
 		room_door_cells[room_index] = {}
+		room_door_ratios[room_index] = {}
 
+	for room_index in range(generated_room_count):
 		for direction in room_connections[room_index]:
-			var door_cell := _find_door_cell(room_index, direction)
-			room_door_cells[room_index][direction] = door_cell
+			var destination: int = room_connections[room_index][direction]
+			if room_index > destination:
+				continue
 
-			if not open_edges.has(door_cell):
-				open_edges[door_cell] = {}
+			var ratios := _choose_connection_door_ratios(
+				room_index,
+				destination,
+				direction
+			)
+			var room_ratio: float = ratios.x
+			var destination_ratio: float = ratios.y
+			var room_door_cell := _find_door_cell(
+				room_index,
+				direction,
+				room_ratio
+			)
+			var destination_door_cell := _find_door_cell(
+				destination,
+				-direction,
+				destination_ratio
+			)
 
-			open_edges[door_cell][direction] = true
+			room_door_cells[room_index][direction] = room_door_cell
+			room_door_cells[destination][-direction] = destination_door_cell
+			room_door_ratios[room_index][direction] = room_ratio
+			room_door_ratios[destination][-direction] = destination_ratio
+			_register_open_door_edge(room_door_cell, direction)
+			_register_open_door_edge(destination_door_cell, -direction)
 
 
-func _find_door_cell(room_index: int, direction: Vector2i) -> Vector2i:
+func _choose_connection_door_ratios(
+	room_index: int,
+	destination: int,
+	direction: Vector2i
+) -> Vector2:
+	var room_rect := _room_minimap_footprint(room_index)
+	var destination_rect := _room_minimap_footprint(destination)
+	var room_start := room_rect.position.y if direction.x != 0 else room_rect.position.x
+	var room_end := room_rect.end.y if direction.x != 0 else room_rect.end.x
+	var destination_start := (
+		destination_rect.position.y
+		if direction.x != 0
+		else destination_rect.position.x
+	)
+	var destination_end := (
+		destination_rect.end.y
+		if direction.x != 0
+		else destination_rect.end.x
+	)
+	var room_length := room_end - room_start
+	var destination_length := destination_end - destination_start
+	var overlap_start := maxf(room_start, destination_start)
+	var overlap_end := minf(room_end, destination_end)
+	var allowed_start := maxf(
+		overlap_start,
+		maxf(
+			room_start + room_length * DOOR_EDGE_MARGIN_RATIO,
+			destination_start
+			+ destination_length * DOOR_EDGE_MARGIN_RATIO
+		)
+	)
+	var allowed_end := minf(
+		overlap_end,
+		minf(
+			room_end - room_length * DOOR_EDGE_MARGIN_RATIO,
+			destination_end
+			- destination_length * DOOR_EDGE_MARGIN_RATIO
+		)
+	)
+	var tangent_position := (overlap_start + overlap_end) * 0.5
+	if allowed_end > allowed_start:
+		var variant: float = DOOR_TANGENT_VARIANTS[
+			rng.randi_range(0, DOOR_TANGENT_VARIANTS.size() - 1)
+		]
+		tangent_position = lerpf(allowed_start, allowed_end, variant)
+
+	# Snap once in the floor's shared tile lattice. Both rooms then resolve the
+	# connection to the very same integer lane instead of rounding separately.
+	var screen_size := _screen_room_size()
+	var cells_per_map_cell := float(
+		screen_size.x if direction.y != 0 else screen_size.y
+	)
+	tangent_position = (
+		floori(tangent_position * cells_per_map_cell) + 0.5
+	) / cells_per_map_cell
+
+	return Vector2(
+		clampf(
+			(tangent_position - room_start) / room_length,
+			0.0,
+			1.0
+		),
+		clampf(
+			(tangent_position - destination_start) / destination_length,
+			0.0,
+			1.0
+		)
+	)
+
+
+func _room_minimap_footprint(room_index: int) -> Rect2:
+	var anchor := room_grid_positions[room_index]
+	if large_room_footprints.has(room_index):
+		var footprint: Rect2i = large_room_footprints[room_index]
+		return Rect2(
+			Vector2(anchor + footprint.position),
+			Vector2(footprint.size)
+		)
+	return Rect2(Vector2(anchor), Vector2.ONE)
+
+
+func _register_open_door_edge(
+	door_cell: Vector2i,
+	direction: Vector2i
+) -> void:
+	if not open_edges.has(door_cell):
+		open_edges[door_cell] = {}
+	open_edges[door_cell][direction] = true
+
+
+func _find_door_cell(
+	room_index: int,
+	direction: Vector2i,
+	tangent_ratio: float = 0.5
+) -> Vector2i:
 	var cells: Dictionary = room_cells[room_index]
-	var center := _room_center_cell(room_index)
+	var bounds := room_bounds[room_index]
 	var extreme := 1000000 if direction in [Vector2i.UP, Vector2i.LEFT] else -1000000
 
 	for key in cells:
@@ -533,8 +872,13 @@ func _find_door_cell(room_index: int, direction: Vector2i) -> Vector2i:
 		else:
 			extreme = maxi(extreme, coordinate)
 
-	var best_cell := center
-	var best_distance := 1000000
+	var best_cell := _room_center_cell(room_index)
+	var target_tangent := (
+		bounds.position.x + bounds.size.x * tangent_ratio
+		if direction.y != 0
+		else bounds.position.y + bounds.size.y * tangent_ratio
+	)
+	var best_distance := INF
 
 	for key in cells:
 		var cell: Vector2i = key
@@ -544,9 +888,9 @@ func _find_door_cell(room_index: int, direction: Vector2i) -> Vector2i:
 			continue
 
 		var distance := (
-			absi(cell.x - center.x)
+			absf(cell.x + 0.5 - target_tangent)
 			if direction.y != 0
-			else absi(cell.y - center.y)
+			else absf(cell.y + 0.5 - target_tangent)
 		)
 
 		if distance < best_distance:
@@ -608,10 +952,7 @@ func _add_obstacle(rect: Rect2i) -> void:
 
 func _prepare_enemy_spawns() -> void:
 	enemy_spawn_cells.resize(generated_room_count)
-	room_encounter_waves.resize(generated_room_count)
-	room_current_wave.resize(generated_room_count)
-	room_active_enemies.resize(generated_room_count)
-	room_wave_transitioning.resize(generated_room_count)
+	room_encounters.resize(generated_room_count)
 	room_encounter_complete.resize(generated_room_count)
 	room_enemies_remaining.resize(generated_room_count)
 	remaining_enemies = 0
@@ -623,35 +964,28 @@ func _prepare_enemy_spawns() -> void:
 		Vector2i(0, -4),
 		Vector2i(5, 3),
 		Vector2i(-5, -3),
+		Vector2i(3, -3),
+		Vector2i(-3, 3),
 	]
 
 	for room_index in range(generated_room_count):
-		var waves := _build_room_encounter(room_index)
-		room_encounter_waves[room_index] = waves
-		room_current_wave[room_index] = -1
-		room_active_enemies[room_index] = 0
-		room_wave_transitioning[room_index] = false
-		room_encounter_complete[room_index] = waves.is_empty()
-
-		var encounter_enemy_count := 0
-		var maximum_wave_size := 0
-		for wave in waves:
-			encounter_enemy_count += wave.size()
-			maximum_wave_size = maxi(maximum_wave_size, wave.size())
+		var encounter := _build_room_encounter(room_index)
+		room_encounters[room_index] = encounter
+		room_encounter_complete[room_index] = encounter.is_empty()
 
 		var center := _room_center_cell(room_index)
 		var reserved: Dictionary = {}
 		var spawns: Array[Vector2i] = []
 
-		for spawn_index in range(maximum_wave_size):
+		for spawn_index in range(encounter.size()):
 			var preferred: Vector2i = center + offsets[spawn_index % offsets.size()]
 			var spawn := _find_safe_cell(room_index, preferred, reserved)
 			spawns.append(spawn)
 			reserved[spawn] = true
 
 		enemy_spawn_cells[room_index] = spawns
-		room_enemies_remaining[room_index] = encounter_enemy_count
-		remaining_enemies += encounter_enemy_count
+		room_enemies_remaining[room_index] = encounter.size()
+		remaining_enemies += encounter.size()
 
 
 func _build_room_encounter(room_index: int) -> Array:
@@ -661,38 +995,35 @@ func _build_room_encounter(room_index: int) -> Array:
 		return []
 
 	if room_types[room_index] == ROOM_TYPE_FINAL:
-		return [
-			[ENEMY_TYPE_MELEE, ENEMY_TYPE_MELEE],
-			[ENEMY_TYPE_RANGED, ENEMY_TYPE_MELEE],
-			[ENEMY_TYPE_RANGED, ENEMY_TYPE_MELEE, ENEMY_TYPE_MELEE],
-		]
+		return _compose_encounter(room_index, 5)
 
 	var distance := room_distances[room_index]
-	var wave_count := 1 if distance <= 1 else 2
-	var waves: Array = []
+	var enemy_count := clampi(1 + distance, 2, 4)
+	return _compose_encounter(room_index, enemy_count)
 
-	for wave_index in range(wave_count):
-		var enemy_count := clampi(
-			1 + int((distance + wave_index) / 2),
-			1,
-			3
+
+func _compose_encounter(room_index: int, base_enemy_count: int) -> Array[String]:
+	var is_large := large_room_indices.has(room_index)
+	var enemy_count := mini(base_enemy_count + (2 if is_large else 0), 6)
+	var ranged_count := 0
+
+	if room_distances[room_index] >= 2:
+		ranged_count = 1
+	if (
+		room_types[room_index] == ROOM_TYPE_FINAL
+		or (is_large and room_distances[room_index] >= 3)
+	):
+		ranged_count = 2
+
+	var encounter: Array[String] = []
+	for enemy_index in range(enemy_count):
+		encounter.append(
+			ENEMY_TYPE_RANGED
+			if enemy_index < ranged_count
+			else ENEMY_TYPE_MELEE
 		)
-		var wave: Array[String] = []
 
-		for enemy_index in range(enemy_count):
-			var can_use_ranged := distance + wave_index >= 2
-			var use_ranged := (
-				can_use_ranged
-				and enemy_index == 0
-				and (room_index + wave_index) % 2 == 1
-			)
-			wave.append(
-				ENEMY_TYPE_RANGED if use_ranged else ENEMY_TYPE_MELEE
-			)
-
-		waves.append(wave)
-
-	return waves
+	return encounter
 
 
 func _find_safe_cell(
@@ -902,6 +1233,7 @@ func _rectangle_polygon(size: Vector2) -> PackedVector2Array:
 
 func _refresh_room_doors(room_index: int) -> void:
 	var locked := room_enemies_remaining[room_index] > 0
+	minimap.set_room_locked(room_index, locked)
 
 	for entry in door_entries:
 		if entry["room"] != room_index:
@@ -953,14 +1285,24 @@ func _on_door_body_entered(
 
 func _transition_to_room(destination_room: int, direction: Vector2i) -> void:
 	is_transitioning = true
+	last_transition_used_slide = false
+	last_transition_direction = direction
 	player.velocity = Vector2.ZERO
 	player.set_physics_process(false)
-	transition_fade.modulate.a = 0.0
-	transition_fade.show()
-
-	var fade_in := create_tween()
-	fade_in.tween_property(transition_fade, "modulate:a", 1.0, 0.18)
-	await fade_in.finished
+	_remove_room_slide_overlay()
+	active_transition_overlay = ROOM_SLIDE_TRANSITION.new()
+	hud.add_child(active_transition_overlay)
+	var slide_is_ready: bool = await active_transition_overlay.prepare(
+		get_viewport(),
+		camera.get_screen_center_position(),
+		camera.zoom,
+		direction,
+		player,
+		player_sprite
+	)
+	if not slide_is_ready:
+		_remove_room_slide_overlay()
+		await _fade_transition_to_black()
 
 	current_room_index = destination_room
 	minimap.visit_room(destination_room)
@@ -979,13 +1321,45 @@ func _transition_to_room(destination_room: int, direction: Vector2i) -> void:
 	await get_tree().process_frame
 	camera.reset_smoothing()
 
+	if slide_is_ready:
+		last_transition_used_slide = await active_transition_overlay.play(
+			camera.get_screen_center_position(),
+			camera.zoom,
+			room_transition_duration
+		)
+		if not last_transition_used_slide:
+			transition_fade.modulate.a = 1.0
+			transition_fade.show()
+			await _fade_transition_from_black()
+		_remove_room_slide_overlay()
+	else:
+		await _fade_transition_from_black()
+
+	player.set_physics_process(true)
+	_activate_room_combat(destination_room)
+	is_transitioning = false
+
+
+func _remove_room_slide_overlay() -> void:
+	if is_instance_valid(active_transition_overlay):
+		active_transition_overlay.restore_player()
+		active_transition_overlay.queue_free()
+	active_transition_overlay = null
+
+
+func _fade_transition_to_black() -> void:
+	transition_fade.modulate.a = 0.0
+	transition_fade.show()
+	var fade_in := create_tween()
+	fade_in.tween_property(transition_fade, "modulate:a", 1.0, 0.18)
+	await fade_in.finished
+
+
+func _fade_transition_from_black() -> void:
 	var fade_out := create_tween()
 	fade_out.tween_property(transition_fade, "modulate:a", 0.0, 0.2)
 	await fade_out.finished
-
 	transition_fade.hide()
-	player.set_physics_process(true)
-	is_transitioning = false
 
 
 func _spawn_room_enemies(room_index: int) -> void:
@@ -1000,52 +1374,23 @@ func _spawn_room_enemies(room_index: int) -> void:
 		_spawn_treasure_room_chest(room_index)
 		return
 
-	if room_encounter_waves[room_index].is_empty():
+	var encounter: Array = room_encounters[room_index]
+	if encounter.is_empty():
 		room_encounter_complete[room_index] = true
 		return
 
-	_spawn_next_room_wave(room_index)
-
-
-func _spawn_next_room_wave(room_index: int) -> void:
-	if (
-		room_wave_transitioning[room_index]
-		or room_encounter_complete[room_index]
-		or room_active_enemies[room_index] > 0
-	):
-		return
-
-	var next_wave_index := room_current_wave[room_index] + 1
-	var waves: Array = room_encounter_waves[room_index]
-	if next_wave_index >= waves.size():
-		room_encounter_complete[room_index] = true
-		return
-
-	room_current_wave[room_index] = next_wave_index
-	room_wave_transitioning[room_index] = true
-	if room_index == current_room_index:
-		_show_wave_banner(next_wave_index + 1, waves.size())
-		_update_room_ui()
-
-	await get_tree().create_timer(wave_spawn_delay).timeout
-	if not is_inside_tree() or room_encounter_complete[room_index]:
-		return
-
-	var wave: Array = waves[next_wave_index]
-	room_active_enemies[room_index] = wave.size()
-	for enemy_index in range(wave.size()):
-		_spawn_wave_enemy(
+	for enemy_index in range(encounter.size()):
+		_spawn_encounter_enemy(
 			room_index,
 			enemy_index,
-			wave[enemy_index]
+			encounter[enemy_index]
 		)
 
-	room_wave_transitioning[room_index] = false
 	if room_index == current_room_index:
 		_update_room_ui()
 
 
-func _spawn_wave_enemy(
+func _spawn_encounter_enemy(
 	room_index: int,
 	spawn_index: int,
 	enemy_type: String
@@ -1063,27 +1408,31 @@ func _spawn_wave_enemy(
 		Vector2.UP,
 		Color(0.72, 0.25, 1.0, 1.0),
 		10,
-		"WaveSpawnParticles"
+		"EncounterSpawnParticles"
 	)
 
 	var enemy := enemy_scene.instantiate() as CharacterBody2D
 	enemies.add_child(enemy)
+	if is_transitioning:
+		enemy.set_physics_process(false)
 	enemy.set_meta("room_index", room_index)
-	enemy.set_meta("wave_index", room_current_wave[room_index])
 	enemy.global_position = spawn_position
 	enemy.connect("died", _on_enemy_died.bind(room_index, enemy))
 
 
-func _show_wave_banner(wave_number: int, total_waves: int) -> void:
-	wave_label.text = tr("HUD_WAVE") % [wave_number, total_waves]
-	wave_label.modulate = Color(1.0, 1.0, 1.0, 0.0)
-	wave_label.show()
-
-	var tween := create_tween()
-	tween.tween_property(wave_label, "modulate:a", 1.0, 0.12)
-	tween.tween_interval(maxf(wave_spawn_delay, 0.3))
-	tween.tween_property(wave_label, "modulate:a", 0.0, 0.22)
-	tween.tween_callback(wave_label.hide)
+func _activate_room_combat(room_index: int) -> void:
+	var ranged_activation_index := 0
+	for enemy in enemies.get_children():
+		if enemy.get_meta("room_index", -1) != room_index:
+			continue
+		if enemy.has_method("begin_entry_grace"):
+			var grace_duration := (
+				float(enemy.get("entry_grace_duration"))
+				+ ranged_activation_index * RANGED_ENTRY_STAGGER
+			)
+			enemy.call("begin_entry_grace", grace_duration)
+			ranged_activation_index += 1
+		enemy.set_physics_process(true)
 
 
 func _spawn_special_room_reward(room_index: int) -> void:
@@ -1097,6 +1446,7 @@ func _spawn_special_room_reward(room_index: int) -> void:
 	)
 	var pickup := HEALTH_PICKUP_SCENE.instantiate() as Area2D
 	pickup.set("heal_amount", health_pickup_amount)
+	_register_map_content(pickup, room_index)
 	pickups.add_child(pickup)
 	pickup.global_position = (
 		_actor_position_for_cell(reward_cell) + Vector2(0.0, 50.0)
@@ -1113,6 +1463,7 @@ func _spawn_special_room_reward(room_index: int) -> void:
 	)
 	var relic := RELIC_PICKUP_SCENE.instantiate() as Area2D
 	relic.call("configure", relic_id)
+	_register_map_content(relic, room_index)
 	relics.add_child(relic)
 	relic.global_position = (
 		_actor_position_for_cell(relic_cell) + Vector2(0.0, 50.0)
@@ -1149,6 +1500,7 @@ func _spawn_treasure_room_chest(room_index: int) -> void:
 	)
 	var chest := TREASURE_CHEST_SCENE.instantiate() as TreasureChest
 	chest.configure(_roll_chest_tier())
+	_register_map_content(chest, room_index)
 	chests.add_child(chest)
 	chest.global_position = (
 		_actor_position_for_cell(chest_cell) + Vector2(0.0, 50.0)
@@ -1157,13 +1509,15 @@ func _spawn_treasure_room_chest(room_index: int) -> void:
 
 
 func _on_treasure_chest_opened(chest: TreasureChest) -> void:
+	var room_index := int(chest.get_meta("room_index", current_room_index))
 	var relic_id := _take_chest_relic_id(chest.chest_tier)
 	if relic_id.is_empty():
-		_spawn_chest_health_reward(chest.global_position)
+		_spawn_chest_health_reward(chest.global_position, room_index)
 		return
 
 	var relic := RELIC_PICKUP_SCENE.instantiate() as Area2D
 	relic.call("configure", relic_id)
+	_register_map_content(relic, room_index)
 	relics.add_child(relic)
 	relic.global_position = chest.global_position + Vector2(0.0, 58.0)
 
@@ -1220,9 +1574,13 @@ func _take_chest_relic_id(chest_tier: int) -> String:
 	return ""
 
 
-func _spawn_chest_health_reward(chest_position: Vector2) -> void:
+func _spawn_chest_health_reward(
+	chest_position: Vector2,
+	room_index: int
+) -> void:
 	var health_reward := HEALTH_PICKUP_SCENE.instantiate() as Area2D
 	health_reward.set("heal_amount", health_pickup_amount)
+	_register_map_content(health_reward, room_index)
 	pickups.add_child(health_reward)
 	health_reward.global_position = chest_position + Vector2(0.0, 58.0)
 
@@ -1232,20 +1590,11 @@ func _on_enemy_died(room_index: int, defeated_enemy: Node2D) -> void:
 		room_enemies_remaining[room_index] - 1,
 		0
 	)
-	room_active_enemies[room_index] = maxi(
-		room_active_enemies[room_index] - 1,
-		0
-	)
 	remaining_enemies = maxi(remaining_enemies - 1, 0)
 	_refresh_room_doors(room_index)
 	_update_enemy_counter()
 
-	if (
-		room_active_enemies[room_index] == 0
-		and room_enemies_remaining[room_index] > 0
-	):
-		_spawn_next_room_wave(room_index)
-	elif room_enemies_remaining[room_index] == 0:
+	if room_enemies_remaining[room_index] == 0:
 		room_encounter_complete[room_index] = true
 		_try_drop_room_reward(
 			room_index,
@@ -1264,27 +1613,33 @@ func _try_drop_room_reward(room_index: int, drop_position: Vector2) -> void:
 		return
 
 	rewarded_rooms[room_index] = true
-	_try_drop_key(drop_position + Vector2(-24.0, 0.0))
+	_try_drop_key(drop_position + Vector2(-24.0, 0.0), room_index)
 
 	if rng.randf() > health_drop_chance:
 		return
 
 	var pickup := HEALTH_PICKUP_SCENE.instantiate() as Area2D
 	pickup.set("heal_amount", health_pickup_amount)
+	_register_map_content(pickup, room_index)
 	pickups.add_child(pickup)
 	pickup.global_position = drop_position + Vector2(24.0, 0.0)
 
 
-func _try_drop_key(drop_position: Vector2) -> void:
+func _try_drop_key(drop_position: Vector2, room_index: int) -> void:
 	var is_guaranteed_first_key := keys_spawned == 0
 	if not is_guaranteed_first_key and rng.randf() > key_drop_chance:
 		return
 
 	var key := KEY_PICKUP_SCENE.instantiate() as Area2D
 	key.set("key_amount", key_pickup_amount)
+	_register_map_content(key, room_index)
 	keys.add_child(key)
 	key.global_position = drop_position
 	keys_spawned += key_pickup_amount
+
+
+func _register_map_content(content: Node, room_index: int) -> void:
+	content.set_meta("room_index", room_index)
 
 
 func _update_enemy_counter() -> void:
@@ -1311,19 +1666,10 @@ func _room_encounter_status(room_index: int) -> String:
 	if room_encounter_complete[room_index]:
 		return tr("ROOM_STATUS_CLEARED")
 
-	if room_wave_transitioning[room_index]:
-		return tr("ROOM_STATUS_NEXT_WAVE")
-
 	if not spawned_rooms.has(room_index):
 		return tr("ROOM_STATUS_WAITING")
 
-	var wave_number := room_current_wave[room_index] + 1
-	var total_waves: int = room_encounter_waves[room_index].size()
-	return tr("ROOM_STATUS_WAVE") % [
-		wave_number,
-		total_waves,
-		room_active_enemies[room_index],
-	]
+	return tr("ROOM_STATUS_COMBAT") % room_enemies_remaining[room_index]
 
 
 func _room_type_display_name(room_type: String) -> String:
@@ -1397,6 +1743,7 @@ func _on_floor_exit_entered(body: Node2D) -> void:
 func _finish_run() -> void:
 	run_is_complete = true
 	is_transitioning = true
+	hud.set_map_expanded(false)
 	player.velocity = Vector2.ZERO
 	player.set_physics_process(false)
 	victory_details.text = (
@@ -1413,8 +1760,22 @@ func _finish_run() -> void:
 
 
 func _validate_floor() -> void:
-	if generated_room_count < 5 or generated_room_count > 8:
-		push_error("The floor must contain between 5 and 8 rooms.")
+	var minimum_room_limit := mini(minimum_rooms, maximum_rooms)
+	var maximum_room_limit := maxi(minimum_rooms, maximum_rooms)
+	if (
+		generated_room_count < minimum_room_limit
+		or generated_room_count > maximum_room_limit
+	):
+		push_error("The floor room count is outside its configured limits.")
+
+	var required_dead_ends := mini(
+		MINIMUM_GRAPH_DEAD_ENDS,
+		generated_room_count - 1
+	)
+	if _count_graph_dead_ends(room_connections) < required_dead_ends:
+		push_error("The floor graph does not have enough useful dead ends.")
+	if _maximum_graph_distance(room_connections) < 3:
+		push_error("The floor graph does not place the final branch far enough away.")
 
 	var graph_visited: Dictionary = {0: true}
 	var graph_pending: Array[int] = [0]

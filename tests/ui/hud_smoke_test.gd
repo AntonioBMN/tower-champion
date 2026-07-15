@@ -37,6 +37,17 @@ func _run() -> void:
 	var relic_panel := floor_scene.get_node("UI/RelicPanel") as ColorRect
 	var debug_panel := floor_scene.get_node("UI/DebugPanel") as ColorRect
 	var room_info_panel := floor_scene.get_node("UI/RoomInfoPanel") as ColorRect
+	var map_backdrop := floor_scene.get_node("UI/MapBackdrop") as ColorRect
+	var minimap_panel := floor_scene.get_node("UI/MinimapPanel") as ColorRect
+	var minimap := floor_scene.get_node(
+		"UI/MinimapPanel/Minimap"
+	) as FloorMinimap
+	var map_title := floor_scene.get_node(
+		"UI/MinimapPanel/TitleLabel"
+	) as Label
+	var map_progress := floor_scene.get_node(
+		"UI/MinimapPanel/ProgressLabel"
+	) as Label
 
 	_expect(health.max_health == 90, "player should start with 90 maximum health")
 	_expect(health_bar.max_value == 90.0, "health bar maximum should match player")
@@ -59,6 +70,38 @@ func _run() -> void:
 	_expect(key_label.text == "KEYS: 0", "key HUD should start at zero")
 	player.call("add_keys", 2)
 	_expect(key_label.text == "KEYS: 2", "key HUD should follow inventory")
+
+	_expect(not hud.is_map_expanded(), "minimap should start in compact mode")
+	_expect(
+		minimap.get_drawn_room_count() == 1
+		and minimap.get_discovered_room_count() == 1,
+		"compact minimap should hide every unvisited neighboring room"
+	)
+	var map_event := InputEventAction.new()
+	map_event.action = "toggle_map"
+	map_event.pressed = true
+	hud._unhandled_input(map_event)
+	_expect(hud.is_map_expanded(), "map action should expand the minimap")
+	_expect(map_backdrop.visible, "expanded map should dim the playfield")
+	_expect(map_title.visible, "expanded map should display its title")
+	_expect(
+		map_progress.text == "EXPLORED ROOMS: 1",
+		"expanded map should report exploration progress"
+	)
+	_expect(
+		minimap.get_drawn_room_count() == minimap.get_discovered_room_count()
+		and minimap.get_drawn_room_count() == 1
+		and minimap.get_drawn_room_count() < minimap.get_total_room_count(),
+		"expanded map should not reveal unexplored floor branches"
+	)
+	_expect(
+		minimap_panel.anchor_left == 0.5
+		and minimap_panel.anchor_top == 0.5,
+		"expanded map should be centered on screen"
+	)
+	hud._unhandled_input(map_event)
+	_expect(not hud.is_map_expanded(), "map action should restore compact mode")
+	_expect(not map_backdrop.visible, "compact mode should remove map backdrop")
 
 	health.take_damage(1)
 	await process_frame

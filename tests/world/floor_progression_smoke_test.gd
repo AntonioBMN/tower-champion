@@ -24,6 +24,7 @@ func _run() -> void:
 	var final_room_index: int = floor_scene.get("final_room_index")
 	var special_room_index: int = floor_scene.get("special_room_index")
 	var treasure_room_index: int = floor_scene.get("treasure_room_index")
+	var large_room_indices: Dictionary = floor_scene.get("large_room_indices")
 	var minimap := floor_scene.get_node("UI/MinimapPanel/Minimap")
 
 	_expect(room_types[0] == "start", "first room should be the start room")
@@ -55,12 +56,16 @@ func _run() -> void:
 		"start, sanctuary and treasure rooms should not contain combat"
 	)
 	_expect(
-		floor_scene.get("room_encounter_waves")[final_room_index].size() == 3,
-		"final room should have a three-wave encounter"
+		not large_room_indices.has(special_room_index)
+		and not large_room_indices.has(treasure_room_index),
+		"sanctuary and treasure rooms should always fit within one screen"
 	)
+	var expected_final_count := 6 if large_room_indices.has(final_room_index) else 5
 	_expect(
-		room_enemy_counts[final_room_index] == 7,
-		"final encounter should track enemies from every wave"
+		floor_scene.get("room_encounters")[final_room_index].size()
+		== expected_final_count
+		and room_enemy_counts[final_room_index] == expected_final_count,
+		"final room should use one complete encounter composition"
 	)
 	_expect(
 		minimap.call("get_room_type", final_room_index) == "final",
@@ -80,11 +85,27 @@ func _run() -> void:
 		floor_scene.get_node("Relics").get_child_count() == 1,
 		"special room should provide one relic pedestal"
 	)
+	minimap.call("visit_room", special_room_index)
+	_expect(
+		minimap.call("get_visible_content_marker_count", special_room_index) == 1,
+		"compact map should prioritize one remaining room reward"
+	)
+	minimap.call("set_expanded", true)
+	_expect(
+		minimap.call("get_visible_content_marker_count", special_room_index) == 2,
+		"expanded map should show all remaining sanctuary rewards"
+	)
+	minimap.call("set_expanded", false)
 
 	floor_scene.call("_spawn_room_enemies", treasure_room_index)
 	_expect(
 		floor_scene.get_node("Chests").get_child_count() == 1,
 		"treasure room should provide one locked chest"
+	)
+	minimap.call("visit_room", treasure_room_index)
+	_expect(
+		minimap.call("get_visible_content_marker_count", treasure_room_index) == 1,
+		"visited treasure room should display its unopened chest"
 	)
 
 	floor_scene.call("_complete_floor")

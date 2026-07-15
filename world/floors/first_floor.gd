@@ -118,9 +118,11 @@ var is_transitioning: bool = false
 @onready var player: CharacterBody2D = $Player
 @onready var camera: Camera2D = $Player/Camera2D
 @onready var hud = $UI
-@onready var enemy_counter_label: Label = $UI/EnemyCounterLabel
-@onready var room_label: Label = $UI/RoomLabel
-@onready var seed_label: Label = $UI/SeedLabel
+@onready var enemy_counter_label: Label = (
+	$UI/RoomInfoPanel/EnemyCounterLabel
+)
+@onready var room_label: Label = $UI/RoomInfoPanel/RoomLabel
+@onready var seed_label: Label = $UI/DebugPanel/SeedLabel
 @onready var floor_cleared_label: Label = $UI/FloorClearedLabel
 @onready var wave_label: Label = $UI/WaveLabel
 @onready var transition_fade: ColorRect = $UI/TransitionFade

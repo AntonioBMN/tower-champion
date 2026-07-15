@@ -17,13 +17,15 @@ var damage_value_start_position: Vector2
 @onready var damage_value_label: Label = $HealthPanel/DamageValueLabel
 @onready var damage_flash: ColorRect = $DamageFlash
 @onready var death_overlay: ColorRect = $DeathOverlay
+@onready var relic_panel: ColorRect = $RelicPanel
 @onready var relic_list_label: Label = $RelicPanel/RelicListLabel
 @onready var relic_notice: Label = $RelicNotice
 @onready var key_label: Label = $HealthPanel/KeyLabel
 @onready var health_title: Label = $HealthPanel/TitleLabel
 @onready var map_title: Label = $MinimapPanel/TitleLabel
 @onready var relic_title: Label = $RelicPanel/TitleLabel
-@onready var controls_label: Label = $ControlsLabel
+@onready var debug_panel: ColorRect = $DebugPanel
+@onready var controls_label: Label = $DebugPanel/ControlsLabel
 @onready var death_title: Label = $DeathOverlay/DeathTitle
 @onready var death_hint: Label = $DeathOverlay/DeathHint
 @onready var victory_title: Label = $VictoryOverlay/VictoryTitle
@@ -43,6 +45,8 @@ func _ready() -> void:
 	invulnerability_label.hide()
 	damage_value_label.hide()
 	relic_notice.hide()
+	relic_panel.hide()
+	debug_panel.hide()
 	pause_overlay.hide()
 	resume_button.pressed.connect(close_pause_menu)
 	restart_button.pressed.connect(_on_restart_pressed)
@@ -65,6 +69,17 @@ func _apply_static_translations() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey:
+		var key_event := event as InputEventKey
+		if (
+			key_event.pressed
+			and not key_event.echo
+			and key_event.keycode == KEY_F3
+		):
+			debug_panel.visible = not debug_panel.visible
+			get_viewport().set_input_as_handled()
+			return
+
 	if not event.is_action_pressed("pause"):
 		return
 
@@ -162,13 +177,17 @@ func _on_keys_changed(current_keys: int) -> void:
 func _on_relics_changed(collected_ids: Array[String]) -> void:
 	if collected_ids.is_empty():
 		relic_list_label.text = tr("HUD_NONE")
+		relic_panel.hide()
 		return
 
 	var lines: Array[String] = []
 	for relic_id in collected_ids:
 		var relic_data := RELIC_CATALOG.get_relic(relic_id)
-		lines.append("• " + tr(relic_data["name_key"]))
+		lines.append("- " + tr(relic_data["name_key"]))
 	relic_list_label.text = "\n".join(lines)
+	relic_list_label.size.y = collected_ids.size() * 18.0
+	relic_panel.size.y = 36.0 + relic_list_label.size.y
+	relic_panel.show()
 
 
 func _on_relic_collected(

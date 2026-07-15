@@ -64,60 +64,35 @@ process_mode = 3
 auto_translate_mode = 1
 script = ExtResource("3_hud")
 
-[node name="TopPanel" type="ColorRect" parent="UI"]
+[node name="RoomInfoPanel" type="ColorRect" parent="UI"]
 anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -342.0
-offset_top = -116.0
+offset_left = -302.0
+offset_top = -82.0
 offset_right = -12.0
 offset_bottom = -12.0
 color = Color(0.05, 0.06, 0.09, 0.82)
 mouse_filter = 2
 
-[node name="EnemyCounterPanel" type="ColorRect" parent="UI"]
-visible = false
-mouse_filter = 2
-
-[node name="EnemyCounterLabel" type="Label" parent="UI"]
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -326.0
-offset_top = -70.0
-offset_right = -24.0
-offset_bottom = -48.0
+[node name="EnemyCounterLabel" type="Label" parent="UI/RoomInfoPanel"]
+offset_left = 12.0
+offset_top = 39.0
+offset_right = 278.0
+offset_bottom = 60.0
 theme_override_colors/font_color = Color(0.72, 0.75, 0.82, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 11
 text = "HUD_ENEMY_COUNT"
 
-[node name="RoomLabel" type="Label" parent="UI"]
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -326.0
-offset_top = -104.0
-offset_right = -24.0
-offset_bottom = -76.0
+[node name="RoomLabel" type="Label" parent="UI/RoomInfoPanel"]
+offset_left = 12.0
+offset_top = 9.0
+offset_right = 278.0
+offset_bottom = 34.0
 theme_override_colors/font_color = Color(0.94, 0.78, 0.32, 1)
-theme_override_font_sizes/font_size = 15
+theme_override_font_sizes/font_size = 12
 text = "HUD_ROOM_SUMMARY"
-
-[node name="SeedLabel" type="Label" parent="UI"]
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -326.0
-offset_top = -42.0
-offset_right = -24.0
-offset_bottom = -22.0
-theme_override_colors/font_color = Color(0.68, 0.71, 0.78, 1)
-theme_override_font_sizes/font_size = 11
-text = "HUD_SEED"
 
 [node name="FloorClearedLabel" type="Label" parent="UI"]
 visible = false
@@ -148,25 +123,25 @@ vertical_alignment = 1
 [node name="HealthPanel" type="ColorRect" parent="UI"]
 offset_left = 12.0
 offset_top = 12.0
-offset_right = 372.0
-offset_bottom = 112.0
+offset_right = 312.0
+offset_bottom = 100.0
 color = Color(0.05, 0.06, 0.09, 0.88)
 mouse_filter = 2
 
 [node name="TitleLabel" type="Label" parent="UI/HealthPanel"]
 offset_left = 16.0
-offset_top = 8.0
+offset_top = 6.0
 offset_right = 120.0
-offset_bottom = 34.0
+offset_bottom = 26.0
 theme_override_colors/font_color = Color(0.83, 0.86, 0.92, 1)
-theme_override_font_sizes/font_size = 17
+theme_override_font_sizes/font_size = 12
 text = "HUD_HEALTH_TITLE"
 
 [node name="HealthBar" type="ProgressBar" parent="UI/HealthPanel"]
 offset_left = 16.0
-offset_top = 38.0
-offset_right = 344.0
-offset_bottom = 72.0
+offset_top = 28.0
+offset_right = 284.0
+offset_bottom = 62.0
 mouse_filter = 2
 theme_override_styles/background = SubResource("StyleBox_health_background")
 theme_override_styles/fill = SubResource("StyleBox_health_fill")
@@ -175,13 +150,13 @@ show_percentage = false
 
 [node name="HealthLabel" type="Label" parent="UI/HealthPanel"]
 offset_left = 16.0
-offset_top = 40.0
-offset_right = 344.0
-offset_bottom = 70.0
+offset_top = 30.0
+offset_right = 284.0
+offset_bottom = 60.0
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
 theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 2
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 16
 text = "5 / 5"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -189,14 +164,15 @@ vertical_alignment = 1
 [node name="MinimapPanel" type="ColorRect" parent="UI"]
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -272.0
+offset_left = -242.0
 offset_top = 12.0
 offset_right = -12.0
-offset_bottom = 176.0
+offset_bottom = 162.0
 color = Color(0.05, 0.06, 0.09, 0.88)
 mouse_filter = 2
 
 [node name="TitleLabel" type="Label" parent="UI/MinimapPanel"]
+visible = false
 offset_left = 12.0
 offset_top = 7.0
 offset_right = 110.0
@@ -207,10 +183,10 @@ text = "HUD_MAP_TITLE"
 
 [node name="Minimap" type="Control" parent="UI/MinimapPanel"]
 layout_mode = 0
-offset_left = 12.0
-offset_top = 30.0
-offset_right = 248.0
-offset_bottom = 152.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 222.0
+offset_bottom = 142.0
 clip_contents = true
 mouse_filter = 2
 script = ExtResource("4_minimap")
@@ -218,58 +194,59 @@ script = ExtResource("4_minimap")
 [node name="InvulnerabilityLabel" type="Label" parent="UI/HealthPanel"]
 visible = false
 offset_left = 16.0
-offset_top = 74.0
+offset_top = 65.0
 offset_right = 230.0
-offset_bottom = 96.0
+offset_bottom = 85.0
 theme_override_colors/font_color = Color(0.42, 0.8, 1, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 11
 text = "HUD_INVULNERABLE"
 
 [node name="DamageValueLabel" type="Label" parent="UI/HealthPanel"]
 visible = false
-offset_left = 286.0
-offset_top = 72.0
-offset_right = 344.0
-offset_bottom = 98.0
+offset_left = 238.0
+offset_top = 63.0
+offset_right = 284.0
+offset_bottom = 85.0
 theme_override_colors/font_color = Color(1, 0.32, 0.28, 1)
-theme_override_font_sizes/font_size = 19
+theme_override_font_sizes/font_size = 16
 text = "-1"
 horizontal_alignment = 2
 
 [node name="KeyLabel" type="Label" parent="UI/HealthPanel"]
-offset_left = 224.0
-offset_top = 8.0
-offset_right = 344.0
-offset_bottom = 32.0
+offset_left = 170.0
+offset_top = 5.0
+offset_right = 284.0
+offset_bottom = 25.0
 theme_override_colors/font_color = Color(1, 0.78, 0.18, 1)
-theme_override_font_sizes/font_size = 15
+theme_override_font_sizes/font_size = 12
 text = "HUD_KEY_COUNT"
 horizontal_alignment = 2
 
 [node name="RelicPanel" type="ColorRect" parent="UI"]
+visible = false
 offset_left = 12.0
-offset_top = 120.0
-offset_right = 372.0
-offset_bottom = 236.0
+offset_top = 108.0
+offset_right = 272.0
+offset_bottom = 154.0
 color = Color(0.05, 0.06, 0.09, 0.86)
 mouse_filter = 2
 
 [node name="TitleLabel" type="Label" parent="UI/RelicPanel"]
 offset_left = 16.0
-offset_top = 8.0
+offset_top = 6.0
 offset_right = 190.0
-offset_bottom = 32.0
+offset_bottom = 25.0
 theme_override_colors/font_color = Color(0.86, 0.65, 1, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 12
 text = "HUD_RELICS_TITLE"
 
 [node name="RelicListLabel" type="Label" parent="UI/RelicPanel"]
 offset_left = 16.0
-offset_top = 38.0
-offset_right = 344.0
-offset_bottom = 106.0
+offset_top = 27.0
+offset_right = 244.0
+offset_bottom = 42.0
 theme_override_colors/font_color = Color(0.8, 0.82, 0.88, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 12
 text = "HUD_NONE"
 
 [node name="RelicNotice" type="Label" parent="UI"]
@@ -286,22 +263,36 @@ text = "HUD_RELIC_ACQUIRED"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="ControlsPanel" type="ColorRect" parent="UI"]
-offset_left = 12.0
-offset_top = 584.0
-offset_right = 650.0
-offset_bottom = 636.0
+[node name="DebugPanel" type="ColorRect" parent="UI"]
+visible = false
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -330.0
+offset_top = 12.0
+offset_right = 330.0
+offset_bottom = 78.0
 color = Color(0.05, 0.06, 0.09, 0.82)
 mouse_filter = 2
 
-[node name="ControlsLabel" type="Label" parent="UI"]
-offset_left = 28.0
-offset_top = 597.0
-offset_right = 635.0
-offset_bottom = 625.0
+[node name="SeedLabel" type="Label" parent="UI/DebugPanel"]
+offset_left = 12.0
+offset_top = 7.0
+offset_right = 648.0
+offset_bottom = 28.0
+theme_override_colors/font_color = Color(0.94, 0.78, 0.32, 1)
+theme_override_font_sizes/font_size = 12
+text = "HUD_SEED"
+horizontal_alignment = 1
+
+[node name="ControlsLabel" type="Label" parent="UI/DebugPanel"]
+offset_left = 12.0
+offset_top = 34.0
+offset_right = 648.0
+offset_bottom = 58.0
 theme_override_colors/font_color = Color(0.82, 0.85, 0.92, 1)
-theme_override_font_sizes/font_size = 17
+theme_override_font_sizes/font_size = 12
 text = "HUD_CONTROLS"
+horizontal_alignment = 1
 
 [node name="DamageFlash" type="ColorRect" parent="UI"]
 visible = false

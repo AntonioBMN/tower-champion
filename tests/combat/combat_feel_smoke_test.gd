@@ -19,6 +19,15 @@ func _run() -> void:
 	var player := PLAYER_SCENE.instantiate() as CharacterBody2D
 	world.add_child(player)
 	player.global_position = Vector2.ZERO
+	var player_collision := player.get_node("CollisionShape2D") as CollisionShape2D
+	_expect(
+		player_collision.position == Vector2(0.0, 50.0),
+		"player body collision should align with the center of the feet"
+	)
+	_expect(
+		player_collision.shape is CapsuleShape2D,
+		"player should use a rounded footprint to avoid catching on corners"
+	)
 
 	var enemy := ENEMY_SCENE.instantiate() as CharacterBody2D
 	world.add_child(enemy)

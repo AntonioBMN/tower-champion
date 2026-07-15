@@ -145,8 +145,9 @@ animations = [{
 "speed": 10.0
 }]
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_1hrjj"]
-size = Vector2(24, 28)
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_player"]
+radius = 11.0
+height = 26.0
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_sword_attack"]
 size = Vector2(90, 56)
@@ -165,8 +166,8 @@ autoplay = "idle"
 frame_progress = 0.47604468
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=441185573]
-position = Vector2(-5, 50)
-shape = SubResource("RectangleShape2D_1hrjj")
+position = Vector2(0, 50)
+shape = SubResource("CapsuleShape2D_player")
 
 [node name="AimPivot" type="Node2D" parent="." unique_id=369681586]
 position = Vector2(-4, 53)

@@ -21,7 +21,7 @@ const COMBAT_FEEDBACK = preload("res://combat/combat_feedback.gd")
 @export_group("Ranged Attack")
 @export_range(1, 1000, 1) var projectile_damage: int = 10
 @export_range(100.0, 1200.0, 10.0) var projectile_speed: float = 520.0
-@export_range(0.2, 5.0, 0.05) var attack_interval: float = 1.15
+@export_range(0.2, 5.0, 0.05) var attack_interval: float = 1.75
 @export_range(100.0, 1000.0, 10.0) var attack_range: float = 580.0
 @export_range(1, 48, 1) var launch_particle_amount: int = 10
 

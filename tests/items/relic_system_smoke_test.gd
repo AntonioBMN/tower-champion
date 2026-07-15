@@ -105,6 +105,10 @@ func _run() -> void:
 		floor_scene.get_node("UI/RelicNotice").visible,
 		"collecting a relic should show HUD feedback"
 	)
+	_expect(
+		floor_scene.get_node("UI/RelicPanel").visible,
+		"relic list should only occupy HUD space after collecting a relic"
+	)
 
 	var fresh_player := PLAYER_SCENE.instantiate() as CharacterBody2D
 	floor_scene.add_child(fresh_player)

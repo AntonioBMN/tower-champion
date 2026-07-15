@@ -34,6 +34,17 @@ func _run() -> void:
 	var ranged_health := ranged_enemy.get_node("HealthComponent") as HealthComponent
 	var initial_enemy_position := ranged_enemy.position
 	_expect(
+		is_equal_approx(float(ranged_enemy.get("attack_interval")), 1.75),
+		"ranged enemy should use the slower attack cadence"
+	)
+	_expect(
+		is_equal_approx(
+			ranged_enemy.get_node("ShootCooldown").wait_time,
+			float(ranged_enemy.get("attack_interval"))
+		),
+		"ranged cooldown should follow its configured attack interval"
+	)
+	_expect(
 		ranged_health.max_health == int(player.get("attack_damage")),
 		"ranged enemy should still die from one base sword hit"
 	)

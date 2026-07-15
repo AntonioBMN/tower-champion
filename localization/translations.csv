@@ -1,0 +1,43 @@
+keys,en,pt_BR
+HUD_ENEMY_COUNT,Enemies: %d,Inimigos: %d
+HUD_ROOM_SUMMARY,%s • %d/%d • %s,%s • %d/%d • %s
+HUD_SEED,Floor 1 • Seed: %d,Andar 1 • Seed: %d
+HUD_FLOOR_EXIT_UNLOCKED,EXIT UNLOCKED IN THE FINAL ROOM!,SAÍDA LIBERADA NA SALA FINAL!
+HUD_WAVE,WAVE %d / %d,ONDA %d / %d
+HUD_HEALTH_TITLE,HEALTH,VIDA
+HUD_MAP_TITLE,MAP,MAPA
+HUD_INVULNERABLE,INVULNERABLE,INVULNERÁVEL
+HUD_KEY_COUNT,KEYS: %d,CHAVES: %d
+HUD_RELICS_TITLE,RUN RELICS,RELÍQUIAS DA RUN
+HUD_NONE,None,Nenhuma
+HUD_RELIC_ACQUIRED,RELIC ACQUIRED: %s,RELÍQUIA OBTIDA: %s
+HUD_CONTROLS,WASD: move | Mouse: aim | Click: attack | R: new run,WASD: mover | Mouse: mirar | Clique: atacar | R: nova run
+HUD_DEATH_TITLE,YOU DIED,VOCÊ MORREU
+HUD_DEATH_HINT,Restarting the run...,Reiniciando a run...
+HUD_VICTORY_TITLE,FIRST FLOOR COMPLETE!,PRIMEIRO ANDAR CONCLUÍDO!
+HUD_VICTORY_DETAILS,Seed %d - %d rooms explored,Seed %d - %d salas exploradas
+HUD_VICTORY_HINT,Press R to start a new run,Pressione R para iniciar uma nova run
+EXIT_PROMPT,ENTER THE PORTAL,ENTRE NO PORTAL
+CHEST_PROMPT,CHEST: 1 KEY,BAÚ: 1 CHAVE
+CHEST_NEEDS_KEY,REQUIRES 1 KEY,PRECISA DE 1 CHAVE
+CHEST_OPENED,OPENED,ABERTO
+ROOM_STATUS_EXIT_OPEN,Exit open,Saída aberta
+ROOM_STATUS_CLEARED,Cleared,Limpa
+ROOM_STATUS_NEXT_WAVE,Next wave...,Próxima onda...
+ROOM_STATUS_WAITING,Encounter waiting,Encontro aguardando
+ROOM_STATUS_WAVE,Wave %d/%d • %d active,Onda %d/%d • %d ativos
+ROOM_TYPE_START,START,INÍCIO
+ROOM_TYPE_SANCTUARY,SANCTUARY,SANTUÁRIO
+ROOM_TYPE_TREASURE,TREASURE,TESOURO
+ROOM_TYPE_FINAL,FINAL ROOM,SALA FINAL
+ROOM_TYPE_COMBAT,COMBAT,COMBATE
+TEST_ROOM_CLEARED,ROOM CLEARED!,SALA CONCLUÍDA!
+TEST_ROOM_CONTROLS,WASD: move | Mouse: aim | Click: attack | R: restart,WASD: mover | Mouse: mirar | Clique: atacar | R: reiniciar
+RELIC_CRIMSON_BLADE_NAME,Crimson Blade,Lâmina Carmesim
+RELIC_CRIMSON_BLADE_DESCRIPTION,+1 sword damage,+1 de dano da espada
+RELIC_WIND_BOOTS_NAME,Wind Boots,Botas do Vendaval
+RELIC_WIND_BOOTS_DESCRIPTION,+15% movement speed,+15% de velocidade
+RELIC_FAR_EYE_NAME,Far Eye,Olho Longínquo
+RELIC_FAR_EYE_DESCRIPTION,+24 range and +8 width,+24 de alcance e +8 de largura
+RELIC_IRON_HEART_NAME,Iron Heart,Coração de Ferro
+RELIC_IRON_HEART_DESCRIPTION,+1 maximum health and heal 1,+1 de vida máxima e cura 1

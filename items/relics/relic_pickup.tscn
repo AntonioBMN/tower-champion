@@ -1,0 +1,43 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://items/relics/relic_pickup.gd" id="1_relic"]
+
+[sub_resource type="CircleShape2D" id="Circle_relic"]
+radius = 26.0
+
+[node name="RelicPickup" type="Area2D"]
+auto_translate_mode = 1
+z_index = 4
+collision_layer = 0
+collision_mask = 1
+monitorable = false
+script = ExtResource("1_relic")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("Circle_relic")
+
+[node name="NameLabel" type="Label" parent="."]
+offset_left = -105.0
+offset_top = -72.0
+offset_right = 105.0
+offset_bottom = -46.0
+theme_override_colors/font_color = Color(1, 0.88, 0.5, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 17
+text = "RELIC_CRIMSON_BLADE_NAME"
+horizontal_alignment = 1
+
+[node name="EffectLabel" type="Label" parent="."]
+offset_left = -125.0
+offset_top = 42.0
+offset_right = 125.0
+offset_bottom = 66.0
+theme_override_colors/font_color = Color(0.82, 0.84, 0.9, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 13
+text = "RELIC_CRIMSON_BLADE_DESCRIPTION"
+horizontal_alignment = 1

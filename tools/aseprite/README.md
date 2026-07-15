@@ -1,33 +1,43 @@
-# Geradores para Aseprite
+# Aseprite generators
 
-O script `generate_dungeon_tiles.lua` cria uma spritesheet 4×4 para o protótipo top-down:
+The `generate_dungeon_tiles.lua` script creates a 4×4 sprite sheet for the
+top-down prototype:
 
-- linha 1: quatro pisos (normal, rachado, detritos e musgo);
-- linha 2: paredes nas quatro direções;
-- linha 3: quatro cantos;
-- linha 4: quatro variações de parede sólida.
+- row 1: four floors (normal, cracked, debris, and moss);
+- row 2: walls in all four directions;
+- row 3: four corners;
+- row 4: four solid-wall variations.
 
-## Instalação
+## Installation
 
-1. No Aseprite, abra **File > Scripts > Open Scripts Folder**.
-2. Copie `generate_dungeon_tiles.lua` para essa pasta.
-3. Volte ao Aseprite e escolha **File > Scripts > Rescan Scripts Folder**.
-4. Execute **File > Scripts > generate_dungeon_tiles**.
+1. In Aseprite, open **File > Scripts > Open Scripts Folder**.
+2. Copy `generate_dungeon_tiles.lua` into that folder.
+3. Return to Aseprite and select **File > Scripts > Rescan Scripts Folder**.
+4. Run **File > Scripts > generate_dungeon_tiles**.
 
-Use tile size `32` para o projeto atual. Depois de gerar, salve primeiro como `.aseprite` para manter o arquivo-fonte e exporte uma cópia `.png` para `sprites/tiles/dungeon_tiles_32px.png`.
+Use tile size `32` for the current project. Save the generated source as an
+`.aseprite` file, then export a `.png` copy to
+`assets/sprites/tiles/dungeon_tiles_32px.png`.
 
-No Godot, importe o PNG sem filtro, crie um `TileSet` com tamanho 32×32 e selecione as regiões da grade. As quatro primeiras células podem receber probabilidades diferentes para variar o piso sem alterar colisões.
+In Godot, import the PNG without filtering, create a 32×32 `TileSet`, and
+select the grid regions. The first four cells may use different probabilities
+to vary the floor without changing collisions.
 
-O campo **Seed** reproduz exatamente as mesmas rachaduras, pedras e pontos de musgo.
+The **Seed** field reproduces the same cracks, rocks, and moss spots.
 
-## Personagens, armas e itens
+## Characters, weapons, and items
 
-O script `generate_game_assets.lua` possui três modos:
+The `generate_game_assets.lua` script provides three modes:
 
-- **Character:** spritesheet 4×4. As linhas são baixo, esquerda, direita e cima; as colunas são os quatro quadros da caminhada.
-- **Weapons:** quatro variações de espada, machado, arco e cajado.
-- **Items:** quatro variações de poção, moeda, chave e baú.
+- **Character:** a 4×4 sprite sheet. Rows represent down, left, right, and up;
+  columns contain the four walk frames.
+- **Weapons:** four variations of swords, axes, bows, and staves.
+- **Items:** four variations of potions, coins, keys, and chests.
 
-Instale-o na mesma pasta de scripts e execute **File > Scripts > generate_game_assets**. Para o protótipo atual, use células de 32 px. Salve o arquivo-fonte `.aseprite` e exporte uma cópia PNG para uma subpasta de `sprites/`.
+Install it in the same scripts folder and run
+**File > Scripts > generate_game_assets**. Use 32 px cells for the current
+prototype. Save the source `.aseprite` file and export a PNG copy into an
+appropriate `assets/sprites/` subfolder.
 
-No Godot, configure o personagem com `hframes = 4` e `vframes = 4`. A ordem das animações é `down`, `left`, `right`, `up`, com quatro quadros em cada uma.
+In Godot, configure the character with `hframes = 4` and `vframes = 4`. The
+animation order is `down`, `left`, `right`, `up`, with four frames per row.

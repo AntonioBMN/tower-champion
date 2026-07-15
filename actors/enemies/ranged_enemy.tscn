@@ -1,0 +1,17 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://actors/enemies/enemy.tscn" id="1_base_enemy"]
+[ext_resource type="Script" path="res://actors/enemies/ranged_enemy.gd" id="2_ranged_script"]
+
+[node name="RangedEnemy" instance=ExtResource("1_base_enemy")]
+script = ExtResource("2_ranged_script")
+
+[node name="AimPivot" type="Node2D" parent="."]
+position = Vector2(0, 50)
+
+[node name="Muzzle" type="Marker2D" parent="AimPivot"]
+position = Vector2(42, 0)
+
+[node name="ShootCooldown" type="Timer" parent="."]
+wait_time = 1.15
+one_shot = true

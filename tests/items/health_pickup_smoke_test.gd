@@ -37,12 +37,14 @@ func _run() -> void:
 		"each room should roll its reward only once"
 	)
 
-	health.take_damage(1)
+	var pickup_heal: int = floor_scene.get("health_pickup_amount")
+	_expect(pickup_heal == 18, "health pickups should restore eighteen health")
+	health.take_damage(pickup_heal)
 	await physics_frame
 	await process_frame
 	_expect(
 		health.current_health == health.max_health,
-		"health pickup should restore one health"
+		"health pickup should restore its configured proportional amount"
 	)
 	_expect(pickups.get_child_count() == 0, "collected pickup should disappear")
 

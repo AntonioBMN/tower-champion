@@ -8,7 +8,7 @@ signal invulnerability_started(duration: float)
 signal invulnerability_ended
 
 @export_group("Health")
-@export_range(1, 100000, 1) var max_health: int = 5
+@export_range(1, 100000, 1) var max_health: int = 100
 @export_range(0.0, 10.0, 0.05) var invulnerability_duration: float = 0.0
 
 var current_health: int

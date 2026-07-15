@@ -33,7 +33,10 @@ func _run() -> void:
 	var player_health := player.get_node("HealthComponent") as HealthComponent
 	var ranged_health := ranged_enemy.get_node("HealthComponent") as HealthComponent
 	var initial_enemy_position := ranged_enemy.position
-	_expect(ranged_health.max_health == 1, "ranged enemy should have one health")
+	_expect(
+		ranged_health.max_health == int(player.get("attack_damage")),
+		"ranged enemy should still die from one base sword hit"
+	)
 
 	await create_timer(1.3).timeout
 	_expect(
@@ -47,7 +50,8 @@ func _run() -> void:
 	await create_timer(1.0).timeout
 
 	_expect(
-		player_health.current_health == player_health.max_health - 1,
+		player_health.current_health
+		== player_health.max_health - int(ranged_enemy.get("projectile_damage")),
 		"ranged projectile should damage the player once"
 	)
 	_expect(

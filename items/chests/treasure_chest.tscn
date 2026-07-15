@@ -1,25 +1,32 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://dem28hlwddbjw"]
 
-[ext_resource type="Script" path="res://items/chests/treasure_chest.gd" id="1_chest"]
+[ext_resource type="Script" uid="uid://dypn7c0mtdkfx" path="res://items/chests/treasure_chest.gd" id="1_chest"]
+[ext_resource type="Texture2D" uid="uid://d2ra2b7xilutk" path="res://assets/sprites/items/chests/fantasy_rpg_toony_chests_32x32.png" id="2_chests"]
 
 [sub_resource type="RectangleShape2D" id="Rectangle_chest"]
 size = Vector2(70, 62)
 
-[node name="TreasureChest" type="Area2D"]
+[node name="TreasureChest" type="Area2D" unique_id=1267666683]
 auto_translate_mode = 1
 z_index = 3
 collision_layer = 0
-collision_mask = 1
 monitorable = false
 script = ExtResource("1_chest")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(0, 2)
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1298878314]
+position = Vector2(0, 4)
 shape = SubResource("Rectangle_chest")
 
-[node name="PromptLabel" type="Label" parent="."]
+[node name="ChestSprite" type="Sprite2D" parent="." unique_id=95648187]
+texture_filter = 1
+scale = Vector2(2, 2)
+texture = ExtResource("2_chests")
+region_enabled = true
+region_rect = Rect2(96, 128, 32, 32)
+
+[node name="PromptLabel" type="Label" parent="." unique_id=1558967235]
 offset_left = -90.0
-offset_top = -62.0
+offset_top = -58.0
 offset_right = 90.0
 offset_bottom = -36.0
 theme_override_colors/font_color = Color(1, 0.82, 0.42, 1)
@@ -27,5 +34,5 @@ theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.95)
 theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 2
 theme_override_font_sizes/font_size = 15
-text = "CHEST_PROMPT"
+text = "WOODEN CHEST: 1 KEY"
 horizontal_alignment = 1

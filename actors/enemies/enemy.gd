@@ -5,7 +5,7 @@ signal died
 const COMBAT_FEEDBACK = preload("res://combat/combat_feedback.gd")
 
 @export var speed: float = 100.0
-@export var contact_damage: int = 1
+@export_range(1, 1000, 1) var contact_damage: int = 12
 @export_range(0.2, 3.0, 0.05) var attack_interval: float = 0.75
 @export_group("Combat Feel")
 @export_range(100.0, 4000.0, 50.0) var knockback_deceleration: float = 1800.0

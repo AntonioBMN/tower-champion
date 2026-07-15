@@ -47,6 +47,14 @@ func _run() -> void:
 		portuguese_floor.call("_room_type_display_name", "start") == "INÍCIO",
 		"dynamic room labels should support Portuguese"
 	)
+	_expect(
+		TranslationServer.translate("CHEST_TIER_RED") == "VERMELHO",
+		"chest tier names should support Portuguese"
+	)
+	_expect(
+		TranslationServer.translate("PAUSE_RESUME") == "CONTINUAR",
+		"pause menu actions should support Portuguese"
+	)
 	portuguese_floor.queue_free()
 	await process_frame
 

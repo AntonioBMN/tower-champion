@@ -4,7 +4,7 @@ extends Area2D
 const COMBAT_FEEDBACK = preload("res://combat/combat_feedback.gd")
 
 @export_range(100.0, 1200.0, 10.0) var speed: float = 520.0
-@export_range(1, 100, 1) var damage: int = 1
+@export_range(1, 1000, 1) var damage: int = 10
 @export_range(0.2, 5.0, 0.1) var max_lifetime: float = 2.0
 @export_range(0.0, 1000.0, 10.0) var impact_knockback: float = 260.0
 @export_range(1, 48, 1) var impact_particle_amount: int = 12

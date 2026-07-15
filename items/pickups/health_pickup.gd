@@ -1,7 +1,7 @@
 class_name HealthPickup
 extends Area2D
 
-@export_range(1, 20, 1) var heal_amount: int = 1
+@export_range(1, 1000, 1) var heal_amount: int = 18
 
 var pulse_time: float = 0.0
 

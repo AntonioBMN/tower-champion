@@ -37,6 +37,8 @@ func _run() -> void:
 	var chests := floor_scene.get_node("Chests")
 	_expect(chests.get_child_count() == 1, "treasure room should spawn one chest")
 	var chest := chests.get_child(0) as TreasureChest
+	chest.configure(TreasureChest.ChestTier.RED)
+	floor_scene.set("upgraded_rarity_chance", 1.0)
 
 	_expect(
 		not chest.call("_try_open", player),
@@ -72,7 +74,7 @@ func _run() -> void:
 	_expect(inventory.keys == 0, "opening a chest should consume exactly one key")
 	_expect(
 		floor_scene.get_node("Relics").get_child_count() == relic_count_before + 1,
-		"opened chest should reveal one relic reward"
+		"red chest should reveal one relic reward"
 	)
 	_expect(
 		not chest.call("_try_open", player),

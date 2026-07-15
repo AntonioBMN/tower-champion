@@ -4,7 +4,7 @@ signal died
 @export var speed: float = 250.0
 
 @export_group("Sword Attack")
-@export_range(1, 100, 1) var attack_damage: int = 1
+@export_range(1, 1000, 1) var attack_damage: int = 20
 @export_range(16.0, 256.0, 1.0) var attack_range: float = 90.0
 @export_range(16.0, 160.0, 1.0) var attack_width: float = 56.0
 @export_range(0.05, 3.0, 0.05) var attack_interval: float = 0.45

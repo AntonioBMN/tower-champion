@@ -28,6 +28,11 @@ var damage_value_start_position: Vector2
 @onready var death_hint: Label = $DeathOverlay/DeathHint
 @onready var victory_title: Label = $VictoryOverlay/VictoryTitle
 @onready var victory_hint: Label = $VictoryOverlay/VictoryHint
+@onready var pause_overlay: ColorRect = $PauseOverlay
+@onready var pause_title: Label = $PauseOverlay/PausePanel/PauseTitle
+@onready var resume_button: Button = $PauseOverlay/PausePanel/ResumeButton
+@onready var restart_button: Button = $PauseOverlay/PausePanel/RestartButton
+@onready var quit_button: Button = $PauseOverlay/PausePanel/QuitButton
 
 
 func _ready() -> void:
@@ -38,6 +43,10 @@ func _ready() -> void:
 	invulnerability_label.hide()
 	damage_value_label.hide()
 	relic_notice.hide()
+	pause_overlay.hide()
+	resume_button.pressed.connect(close_pause_menu)
+	restart_button.pressed.connect(_on_restart_pressed)
+	quit_button.pressed.connect(_on_quit_pressed)
 
 
 func _apply_static_translations() -> void:
@@ -49,6 +58,45 @@ func _apply_static_translations() -> void:
 	death_hint.text = tr("HUD_DEATH_HINT")
 	victory_title.text = tr("HUD_VICTORY_TITLE")
 	victory_hint.text = tr("HUD_VICTORY_HINT")
+	pause_title.text = tr("PAUSE_TITLE")
+	resume_button.text = tr("PAUSE_RESUME")
+	restart_button.text = tr("PAUSE_RESTART")
+	quit_button.text = tr("PAUSE_QUIT")
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not event.is_action_pressed("pause"):
+		return
+
+	get_viewport().set_input_as_handled()
+	if pause_overlay.visible:
+		close_pause_menu()
+	else:
+		open_pause_menu()
+
+
+func open_pause_menu() -> void:
+	if death_overlay.visible or $VictoryOverlay.visible:
+		return
+
+	pause_overlay.show()
+	get_tree().paused = true
+	resume_button.grab_focus()
+
+
+func close_pause_menu() -> void:
+	pause_overlay.hide()
+	get_tree().paused = false
+
+
+func _on_restart_pressed() -> void:
+	close_pause_menu()
+	get_tree().reload_current_scene()
+
+
+func _on_quit_pressed() -> void:
+	close_pause_menu()
+	get_tree().quit()
 
 
 func bind_health(component: HealthComponent) -> void:
@@ -237,9 +285,15 @@ func _on_invulnerability_ended() -> void:
 
 
 func _on_died() -> void:
+	close_pause_menu()
 	invulnerability_label.hide()
 	death_overlay.modulate.a = 0.0
 	death_overlay.show()
 
 	var tween := create_tween()
 	tween.tween_property(death_overlay, "modulate:a", 1.0, 0.18)
+
+
+func _exit_tree() -> void:
+	if get_tree() != null:
+		get_tree().paused = false

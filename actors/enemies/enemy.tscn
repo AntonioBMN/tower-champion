@@ -173,7 +173,7 @@ shape = SubResource("RectangleShape2D_m50k7")
 
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("3_health")
-max_health = 3
+max_health = 60
 
 [node name="AttackCooldown" type="Timer" parent="."]
 wait_time = 0.75

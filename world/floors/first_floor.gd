@@ -37,6 +37,9 @@ const ROOM_TYPE_TREASURE := "treasure"
 const ROOM_TYPE_FINAL := "final"
 const ENEMY_TYPE_MELEE := "melee"
 const ENEMY_TYPE_RANGED := "ranged"
+const LARGE_ROOM_CHANCE := 0.22
+const MAXIMUM_LARGE_ROOMS := 2
+const MINIMUM_SCREEN_ROOM_SIZE := Vector2i(16, 10)
 
 @export_group("Generation")
 @export var randomize_layout: bool = true
@@ -46,9 +49,16 @@ const ENEMY_TYPE_RANGED := "ranged"
 
 @export_group("Room Rewards")
 @export_range(0.0, 1.0, 0.05) var health_drop_chance: float = 0.35
-@export_range(1, 10, 1) var health_pickup_amount: int = 1
+@export_range(1, 1000, 1) var health_pickup_amount: int = 18
 @export_range(0.0, 1.0, 0.05) var key_drop_chance: float = 0.3
 @export_range(1, 10, 1) var key_pickup_amount: int = 1
+
+@export_group("Treasure Chests")
+@export_range(0.0, 100.0, 1.0) var wood_chest_weight: float = 60.0
+@export_range(0.0, 100.0, 1.0) var silver_chest_weight: float = 30.0
+@export_range(0.0, 100.0, 1.0) var red_chest_weight: float = 10.0
+@export_range(0.0, 1.0, 0.05) var wood_chest_health_chance: float = 0.55
+@export_range(0.0, 1.0, 0.05) var upgraded_rarity_chance: float = 0.8
 
 @export_group("Encounter Waves")
 @export_range(0.05, 2.0, 0.05) var wave_spawn_delay: float = 0.55
@@ -61,6 +71,7 @@ var obstacle_cells: Dictionary = {}
 var room_grid_positions: Array[Vector2i] = []
 var room_bounds: Array[Rect2i] = []
 var room_cells: Array = []
+var large_room_indices: Dictionary = {}
 var room_connections: Array = []
 var room_door_cells: Array = []
 var room_types: Array[String] = []
@@ -199,6 +210,7 @@ func _generate_floor() -> void:
 	room_grid_positions.clear()
 	room_bounds.clear()
 	room_cells.clear()
+	large_room_indices.clear()
 	room_connections.clear()
 	room_door_cells.clear()
 	room_types.clear()
@@ -231,6 +243,7 @@ func _generate_floor() -> void:
 
 	_generate_room_graph()
 	_assign_room_roles()
+	_select_large_rooms()
 	_generate_room_shapes()
 	_configure_room_doors()
 	_generate_obstacles()
@@ -392,18 +405,50 @@ func _generate_room_shapes() -> void:
 				_fill_room_rect(room_index, rect)
 
 
+func _select_large_rooms() -> void:
+	var candidates: Array[int] = []
+
+	for room_index in range(1, generated_room_count):
+		candidates.append(room_index)
+
+	for candidate_index in range(candidates.size() - 1, 0, -1):
+		var swap_index := rng.randi_range(0, candidate_index)
+		var candidate := candidates[candidate_index]
+		candidates[candidate_index] = candidates[swap_index]
+		candidates[swap_index] = candidate
+	for room_index in candidates:
+		if (
+			large_room_indices.size() < MAXIMUM_LARGE_ROOMS
+			and rng.randf() < LARGE_ROOM_CHANCE
+		):
+			large_room_indices[room_index] = true
+
+	# Every floor has one standout room without letting large rooms dominate it.
+	if large_room_indices.is_empty() and not candidates.is_empty():
+		large_room_indices[candidates[0]] = true
+
+
 func _room_size(room_index: int) -> Vector2i:
-	match room_index % 5:
-		1:
-			return Vector2i(rng.randi_range(21, 24), rng.randi_range(11, 12))
-		2:
-			return Vector2i(rng.randi_range(20, 23), rng.randi_range(13, 15))
-		3:
-			return Vector2i(rng.randi_range(20, 22), rng.randi_range(13, 15))
-		4:
-			return Vector2i(rng.randi_range(18, 20), rng.randi_range(14, 16))
-		_:
-			return Vector2i(rng.randi_range(18, 20), rng.randi_range(11, 13))
+	var screen_size := _screen_room_size()
+
+	if large_room_indices.has(room_index):
+		return Vector2i(
+			screen_size.x + rng.randi_range(3, 6),
+			screen_size.y + rng.randi_range(2, 4)
+		)
+
+	return Vector2i(
+		screen_size.x - rng.randi_range(0, 2),
+		screen_size.y - rng.randi_range(0, 1)
+	)
+
+
+func _screen_room_size() -> Vector2i:
+	var viewport_size := get_viewport_rect().size
+	return Vector2i(
+		maxi(MINIMUM_SCREEN_ROOM_SIZE.x, roundi(viewport_size.x / CELL_SIZE)),
+		maxi(MINIMUM_SCREEN_ROOM_SIZE.y, roundi(viewport_size.y / CELL_SIZE))
+	)
 
 
 func _fill_room_rect(room_index: int, rect: Rect2i) -> void:
@@ -1072,10 +1117,15 @@ func _spawn_special_room_reward(room_index: int) -> void:
 	)
 
 
-func _take_random_relic_id() -> String:
+func _take_random_relic_id(rarities: Array[String] = []) -> String:
 	var candidates: Array[String] = []
 	for relic_id in available_relic_ids:
-		if not player.relic_component.has_relic(relic_id):
+		var relic_data: Dictionary = RELIC_CATALOG.get_relic(relic_id)
+		var matches_rarity: bool = (
+			rarities.is_empty()
+			or relic_data.get("rarity", "common") in rarities
+		)
+		if not player.relic_component.has_relic(relic_id) and matches_rarity:
 			candidates.append(relic_id)
 
 	if candidates.is_empty():
@@ -1096,6 +1146,7 @@ func _spawn_treasure_room_chest(room_index: int) -> void:
 		room_index, _room_center_cell(room_index)
 	)
 	var chest := TREASURE_CHEST_SCENE.instantiate() as TreasureChest
+	chest.configure(_roll_chest_tier())
 	chests.add_child(chest)
 	chest.global_position = (
 		_actor_position_for_cell(chest_cell) + Vector2(0.0, 50.0)
@@ -1104,18 +1155,74 @@ func _spawn_treasure_room_chest(room_index: int) -> void:
 
 
 func _on_treasure_chest_opened(chest: TreasureChest) -> void:
-	var relic_id := _take_random_relic_id()
+	var relic_id := _take_chest_relic_id(chest.chest_tier)
 	if relic_id.is_empty():
-		var health_reward := HEALTH_PICKUP_SCENE.instantiate() as Area2D
-		health_reward.set("heal_amount", health_pickup_amount)
-		pickups.add_child(health_reward)
-		health_reward.global_position = chest.global_position + Vector2(0.0, 58.0)
+		_spawn_chest_health_reward(chest.global_position)
 		return
 
 	var relic := RELIC_PICKUP_SCENE.instantiate() as Area2D
 	relic.call("configure", relic_id)
 	relics.add_child(relic)
 	relic.global_position = chest.global_position + Vector2(0.0, 58.0)
+
+
+func _roll_chest_tier() -> int:
+	var total_weight := (
+		wood_chest_weight + silver_chest_weight + red_chest_weight
+	)
+	if total_weight <= 0.0:
+		return TreasureChest.ChestTier.WOOD
+
+	var roll := rng.randf_range(0.0, total_weight)
+	if roll < wood_chest_weight:
+		return TreasureChest.ChestTier.WOOD
+	if roll < wood_chest_weight + silver_chest_weight:
+		return TreasureChest.ChestTier.SILVER
+	return TreasureChest.ChestTier.RED
+
+
+func _take_chest_relic_id(chest_tier: int) -> String:
+	if (
+		chest_tier == TreasureChest.ChestTier.WOOD
+		and rng.randf() < wood_chest_health_chance
+	):
+		return ""
+
+	var preferred_rarity := "common"
+	var fallback_rarities: Array[String] = []
+	match chest_tier:
+		TreasureChest.ChestTier.SILVER:
+			preferred_rarity = (
+				"uncommon" if rng.randf() < upgraded_rarity_chance else "common"
+			)
+			fallback_rarities = ["uncommon", "common"]
+		TreasureChest.ChestTier.RED:
+			preferred_rarity = (
+				"rare" if rng.randf() < upgraded_rarity_chance else "uncommon"
+			)
+			fallback_rarities = ["rare", "uncommon", "common"]
+		_:
+			fallback_rarities = ["common"]
+
+	var relic_id := _take_random_relic_id([preferred_rarity])
+	if not relic_id.is_empty():
+		return relic_id
+
+	for rarity in fallback_rarities:
+		if rarity == preferred_rarity:
+			continue
+		relic_id = _take_random_relic_id([rarity])
+		if not relic_id.is_empty():
+			return relic_id
+
+	return ""
+
+
+func _spawn_chest_health_reward(chest_position: Vector2) -> void:
+	var health_reward := HEALTH_PICKUP_SCENE.instantiate() as Area2D
+	health_reward.set("heal_amount", health_pickup_amount)
+	pickups.add_child(health_reward)
+	health_reward.global_position = chest_position + Vector2(0.0, 58.0)
 
 
 func _on_enemy_died(room_index: int, defeated_enemy: Node2D) -> void:

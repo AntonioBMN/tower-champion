@@ -15,14 +15,17 @@ during one run.
 
 - ID: `crimson_blade`
 - Identification color: red
-- Effect: adds 1 damage to every sword attack.
-- Current value: `attack_damage_add = 1`
-- Balance note: directly reduces the number of hits required to defeat enemies.
+- Rarity: uncommon
+- Effect: adds 5 damage to every sword attack.
+- Current value: `attack_damage_add = 5`
+- Balance note: improves damage breakpoints against tougher enemies while
+  remaining small enough to combine with future permanent upgrades.
 
 ## Wind Boots
 
 - ID: `wind_boots`
 - Identification color: cyan-blue
+- Rarity: common
 - Effect: increases player movement speed by 15%.
 - Current value: `speed_multiplier = 1.15`
 - Balance note: improves mobility, dodging, and exploration without directly
@@ -32,6 +35,7 @@ during one run.
 
 - ID: `far_eye`
 - Identification color: purple
+- Rarity: common
 - Effect: increases sword range by 24 units and hitbox width by 8 units.
 - Current values: `attack_range_add = 24`, `attack_width_add = 8`
 - Balance note: makes multi-target hits and safer attacks easier, especially
@@ -41,8 +45,9 @@ during one run.
 
 - ID: `iron_heart`
 - Identification color: golden orange
-- Effect: increases maximum health by 1 and immediately heals 1 health.
-- Current values: `max_health_add = 1`, `heal_amount = 1`
+- Rarity: rare
+- Effect: increases maximum health by 15 and immediately heals 15 health.
+- Current values: `max_health_add = 15`, `heal_amount = 15`
 - Balance note: healing cannot exceed the new maximum health.
 
 ## Technical rules

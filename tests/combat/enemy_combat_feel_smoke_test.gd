@@ -28,13 +28,18 @@ func _run() -> void:
 	world.add_child(melee_enemy)
 	melee_enemy.global_position = Vector2.ZERO
 	var initial_health := player_health.current_health
+	_expect(
+		int(melee_enemy.get("contact_damage")) == 12,
+		"melee enemy base damage should be twelve"
+	)
 	var melee_hit_applied: bool = melee_enemy.call(
 		"_deal_contact_damage", player
 	)
 
 	_expect(melee_hit_applied, "melee enemy should land its contact attack")
 	_expect(
-		player_health.current_health == initial_health - 1,
+		player_health.current_health
+		== initial_health - int(melee_enemy.get("contact_damage")),
 		"melee attack should damage the player"
 	)
 	_expect(
@@ -60,6 +65,10 @@ func _run() -> void:
 
 	var ranged_enemy := RANGED_ENEMY_SCENE.instantiate() as CharacterBody2D
 	world.add_child(ranged_enemy)
+	_expect(
+		int(ranged_enemy.get("projectile_damage")) == 10,
+		"ranged enemy base damage should be ten"
+	)
 	ranged_enemy.global_position = Vector2(320.0, 0.0)
 	ranged_enemy.get_node("AimPivot").rotation = PI
 	ranged_enemy.call("shoot")
@@ -88,7 +97,8 @@ func _run() -> void:
 		var health_before_projectile := player_health.current_health
 		projectile.call("_on_body_entered", player)
 		_expect(
-			player_health.current_health == health_before_projectile - 1,
+			player_health.current_health
+			== health_before_projectile - projectile.damage,
 			"ranged projectile should damage the player"
 		)
 		_expect(

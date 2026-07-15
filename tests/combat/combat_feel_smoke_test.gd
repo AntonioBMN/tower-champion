@@ -26,6 +26,9 @@ func _run() -> void:
 
 	var enemy_health := enemy.get_node("HealthComponent") as HealthComponent
 	var initial_health := enemy_health.current_health
+	var sword_damage: int = player.get("attack_damage")
+	_expect(sword_damage == 20, "player base sword damage should be twenty")
+	_expect(enemy_health.max_health == 60, "melee enemy should have sixty health")
 	player.call("perform_sword_attack")
 	_expect(player.get("attack_active"), "sword swing should become active")
 	_expect(
@@ -41,7 +44,7 @@ func _run() -> void:
 	await physics_frame
 
 	_expect(
-		enemy_health.current_health == initial_health - 1,
+		enemy_health.current_health == initial_health - sword_damage,
 		"sword hit should still apply configured damage"
 	)
 	_expect(
@@ -70,7 +73,7 @@ func _run() -> void:
 
 	player.call("try_damage_attack_target", enemy)
 	_expect(
-		enemy_health.current_health == initial_health - 1,
+		enemy_health.current_health == initial_health - sword_damage,
 		"one swing should not damage the same target twice"
 	)
 

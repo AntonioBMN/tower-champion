@@ -9,7 +9,7 @@ const PROJECTILE_SCENE: PackedScene = preload(
 const COMBAT_FEEDBACK = preload("res://combat/combat_feedback.gd")
 
 @export_group("Stats")
-@export_range(1, 100, 1) var max_health: int = 1
+@export_range(1, 1000, 1) var max_health: int = 20
 
 @export_group("Movement")
 @export_range(10.0, 500.0, 5.0) var move_speed: float = 85.0
@@ -19,7 +19,7 @@ const COMBAT_FEEDBACK = preload("res://combat/combat_feedback.gd")
 @export_range(100.0, 4000.0, 50.0) var knockback_deceleration: float = 1800.0
 
 @export_group("Ranged Attack")
-@export_range(1, 100, 1) var projectile_damage: int = 1
+@export_range(1, 1000, 1) var projectile_damage: int = 10
 @export_range(100.0, 1200.0, 10.0) var projectile_speed: float = 520.0
 @export_range(0.2, 5.0, 0.05) var attack_interval: float = 1.15
 @export_range(100.0, 1000.0, 10.0) var attack_range: float = 580.0

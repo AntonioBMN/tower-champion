@@ -35,12 +35,31 @@ func _run() -> void:
 	var initial_connections: Array = floor_scene.get("room_connections")
 	var generated_room_cells: Array = floor_scene.get("room_cells")
 	var generated_room_bounds: Array = floor_scene.get("room_bounds")
+	var large_room_indices: Dictionary = floor_scene.get("large_room_indices")
+	var screen_room_size: Vector2i = floor_scene.call("_screen_room_size")
+	_expect(
+		large_room_indices.size() >= 1 and large_room_indices.size() <= 2,
+		"each floor should contain only one or two large rooms"
+	)
 	for room_index in range(room_count):
 		_expect(
 			minimap.call("get_room_shape_cell_count", room_index)
 			== generated_room_cells[room_index].size(),
 			"minimap should receive every exact generated room shape"
 		)
+		var room_size: Vector2i = generated_room_bounds[room_index].size
+		if large_room_indices.has(room_index):
+			_expect(
+				room_size.x > screen_room_size.x
+				and room_size.y > screen_room_size.y,
+				"large rooms should extend beyond the visible screen"
+			)
+		else:
+			_expect(
+				room_size.x <= screen_room_size.x
+				and room_size.y <= screen_room_size.y,
+				"regular rooms should stay close to one visible screen"
+			)
 	_expect(
 		generated_room_cells[2].size()
 		< generated_room_bounds[2].size.x * generated_room_bounds[2].size.y,

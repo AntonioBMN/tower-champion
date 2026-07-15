@@ -70,8 +70,8 @@ func _run() -> void:
 		"run should retain all four unique relics"
 	)
 	_expect(
-		player.get("attack_damage") == base_damage + 1,
-		"Crimson Blade should add one sword damage"
+		player.get("attack_damage") == base_damage + 5,
+		"Crimson Blade should add five sword damage"
 	)
 	_expect(
 		is_equal_approx(player.get("speed"), base_speed * 1.15),
@@ -83,9 +83,9 @@ func _run() -> void:
 		"Far Eye should increase sword range and width"
 	)
 	_expect(
-		health.max_health == base_max_health + 1
+		health.max_health == base_max_health + 15
 		and health.current_health == health.max_health,
-		"Iron Heart should increase maximum health and heal one"
+		"Iron Heart should increase maximum health and heal fifteen"
 	)
 
 	var attack_shape := player.get_node(

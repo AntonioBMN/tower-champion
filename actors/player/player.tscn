@@ -202,6 +202,7 @@ max_polyphony = 4
 
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("4_health")
+max_health = 90
 invulnerability_duration = 0.8
 
 [node name="RelicComponent" type="Node" parent="."]

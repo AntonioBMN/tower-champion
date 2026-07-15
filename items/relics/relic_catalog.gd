@@ -5,18 +5,21 @@ const RELICS := {
 	"crimson_blade": {
 		"name_key": "RELIC_CRIMSON_BLADE_NAME",
 		"description_key": "RELIC_CRIMSON_BLADE_DESCRIPTION",
+		"rarity": "uncommon",
 		"color": Color(0.92, 0.18, 0.22, 1.0),
-		"effects": {"attack_damage_add": 1},
+		"effects": {"attack_damage_add": 5},
 	},
 	"wind_boots": {
 		"name_key": "RELIC_WIND_BOOTS_NAME",
 		"description_key": "RELIC_WIND_BOOTS_DESCRIPTION",
+		"rarity": "common",
 		"color": Color(0.24, 0.78, 1.0, 1.0),
 		"effects": {"speed_multiplier": 1.15},
 	},
 	"far_eye": {
 		"name_key": "RELIC_FAR_EYE_NAME",
 		"description_key": "RELIC_FAR_EYE_DESCRIPTION",
+		"rarity": "common",
 		"color": Color(0.68, 0.38, 1.0, 1.0),
 		"effects": {
 			"attack_range_add": 24.0,
@@ -26,10 +29,11 @@ const RELICS := {
 	"iron_heart": {
 		"name_key": "RELIC_IRON_HEART_NAME",
 		"description_key": "RELIC_IRON_HEART_DESCRIPTION",
+		"rarity": "rare",
 		"color": Color(0.95, 0.56, 0.18, 1.0),
 		"effects": {
-			"max_health_add": 1,
-			"heal_amount": 1,
+			"max_health_add": 15,
+			"heal_amount": 15,
 		},
 	},
 }
@@ -46,6 +50,14 @@ static func get_all_ids() -> Array[String]:
 	var result: Array[String] = []
 	for relic_id in RELICS:
 		result.append(relic_id)
+	return result
+
+
+static func get_ids_by_rarity(rarity: String) -> Array[String]:
+	var result: Array[String] = []
+	for relic_id in RELICS:
+		if RELICS[relic_id].get("rarity", "common") == rarity:
+			result.append(relic_id)
 	return result
 
 

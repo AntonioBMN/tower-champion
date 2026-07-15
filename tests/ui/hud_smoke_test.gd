@@ -34,9 +34,10 @@ func _run() -> void:
 	) as Label
 	var key_label := floor_scene.get_node("UI/HealthPanel/KeyLabel") as Label
 
-	_expect(health_bar.max_value == 5.0, "health bar maximum should match player")
-	_expect(health_bar.value == 5.0, "health bar should start full")
-	_expect(health_label.text == "5 / 5", "health text should show initial value")
+	_expect(health.max_health == 90, "player should start with 90 maximum health")
+	_expect(health_bar.max_value == 90.0, "health bar maximum should match player")
+	_expect(health_bar.value == 90.0, "health bar should start full")
+	_expect(health_label.text == "90 / 90", "health text should show initial value")
 	_expect(relic_list.text == "None", "relic HUD should start empty")
 	_expect(key_label.text == "KEYS: 0", "key HUD should start at zero")
 	player.call("add_keys", 2)
@@ -44,8 +45,8 @@ func _run() -> void:
 
 	health.take_damage(1)
 	await process_frame
-	_expect(health_bar.value == 4.0, "damage should update the health bar")
-	_expect(health_label.text == "4 / 5", "damage should update health text")
+	_expect(health_bar.value == 89.0, "damage should update the health bar")
+	_expect(health_label.text == "89 / 90", "damage should update health text")
 	_expect(
 		invulnerability_label.visible,
 		"invulnerability indicator should appear after damage"
@@ -57,7 +58,7 @@ func _run() -> void:
 		"invulnerability indicator should disappear after its timer"
 	)
 
-	health.take_damage(99)
+	health.take_damage(health.current_health)
 	await process_frame
 	_expect(death_overlay.visible, "death overlay should appear on death")
 

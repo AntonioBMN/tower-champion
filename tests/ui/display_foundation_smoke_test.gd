@@ -159,7 +159,7 @@ func _validate_layout_is_viewport_independent() -> void:
 		"the same seed should keep rooms and doors identical across aspects"
 	)
 	_expect(
-		wide_signature["screen_room_size"] == Vector2i(16, 8),
+		wide_signature["screen_room_size"] == Vector2i(16, 7),
 		"regular rooms should derive from the logical resolution, not the window"
 	)
 

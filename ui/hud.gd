@@ -38,7 +38,6 @@ var map_expanded: bool = false
 )
 @onready var relic_notice: Label = $SafeFrame/RelicNotice
 @onready var key_label: Label = $SafeFrame/HealthPanel/KeyLabel
-@onready var health_title: Label = $SafeFrame/HealthPanel/TitleLabel
 @onready var map_backdrop: ColorRect = $SafeFrame/MapBackdrop
 @onready var minimap_panel: ColorRect = $SafeFrame/MinimapPanel
 @onready var map_title: Label = $SafeFrame/MinimapPanel/TitleLabel
@@ -104,7 +103,6 @@ func _ready() -> void:
 
 
 func _apply_static_translations() -> void:
-	health_title.text = tr("HUD_HEALTH_TITLE")
 	map_title.text = tr("HUD_MAP_TITLE")
 	map_legend_label.text = tr("HUD_MAP_LEGEND")
 	relic_title.text = tr("HUD_RELICS_TITLE")
@@ -340,7 +338,7 @@ func bind_inventory(inventory: RunInventory) -> void:
 
 
 func _on_keys_changed(current_keys: int) -> void:
-	key_label.text = tr("HUD_KEY_COUNT") % current_keys
+	key_label.text = str(current_keys)
 
 
 func _on_relics_changed(collected_ids: Array[String]) -> void:

@@ -12,6 +12,7 @@ var destination_view: TextureRect
 var transition_player: AnimatedSprite2D
 var tracked_player: CanvasItem
 var tracked_player_sprite: AnimatedSprite2D
+var departing_anchor_screen_position := Vector2.ZERO
 
 
 static func get_gameplay_size() -> Vector2:
@@ -23,6 +24,16 @@ static func calculate_slide_offset(
 	viewport_size: Vector2
 ) -> Vector2:
 	return Vector2(direction) * viewport_size
+
+
+static func calculate_anchor_slide_offset(
+	departing_anchor_screen_position: Vector2,
+	destination_anchor_screen_position: Vector2
+) -> Vector2:
+	return (
+		departing_anchor_screen_position
+		- destination_anchor_screen_position
+	)
 
 
 static func world_to_screen_position(
@@ -42,6 +53,7 @@ func prepare(
 	camera_center: Vector2,
 	camera_zoom: Vector2,
 	direction: Vector2i,
+	departing_anchor_world_position: Vector2,
 	player_value: CanvasItem,
 	player_sprite: AnimatedSprite2D
 ) -> bool:
@@ -54,6 +66,12 @@ func prepare(
 		or not is_instance_valid(tracked_player_sprite)
 	):
 		return false
+	departing_anchor_screen_position = world_to_screen_position(
+		departing_anchor_world_position,
+		camera_center,
+		camera_zoom,
+		get_gameplay_size()
+	)
 
 	_configure_overlay()
 	_create_player_visual(
@@ -80,6 +98,7 @@ func prepare(
 func play(
 	camera_center: Vector2,
 	camera_zoom: Vector2,
+	destination_anchor_world_position: Vector2,
 	duration: float
 ) -> bool:
 	var destination_texture := await _capture_world_view(
@@ -98,10 +117,22 @@ func play(
 		return false
 
 	destination_view.texture = destination_texture
-	var travel_offset := calculate_slide_offset(
-		transition_direction,
+	var destination_anchor_screen_position := world_to_screen_position(
+		destination_anchor_world_position,
+		camera_center,
+		camera_zoom,
 		get_gameplay_size()
 	)
+	var travel_offset := calculate_anchor_slide_offset(
+		departing_anchor_screen_position,
+		destination_anchor_screen_position
+	)
+	if travel_offset.dot(Vector2(transition_direction)) <= 0.0:
+		travel_offset = calculate_slide_offset(
+			transition_direction,
+			get_gameplay_size()
+		)
+	destination_view.position = travel_offset
 	var slide_tween := create_tween()
 	slide_tween.set_parallel(true)
 	slide_tween.set_trans(Tween.TRANS_SINE)

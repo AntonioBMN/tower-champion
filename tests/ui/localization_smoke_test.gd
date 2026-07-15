@@ -17,14 +17,9 @@ func _run() -> void:
 	root.add_child(english_floor)
 	await process_frame
 	_expect(
-		english_floor.get_node("UI/SafeFrame/HealthPanel/TitleLabel").text
-		== "HEALTH",
-		"English should be available as the source locale"
-	)
-	_expect(
 		english_floor.get_node("UI/SafeFrame/HealthPanel/KeyLabel").text
-		== "KEYS: 0",
-		"dynamic HUD text should use the English locale"
+		== "0",
+		"icon-based key HUD should remain language neutral"
 	)
 	_expect(
 		english_floor.get_node("UI/SafeFrame/MinimapPanel/TitleLabel").text
@@ -49,14 +44,9 @@ func _run() -> void:
 	root.add_child(portuguese_floor)
 	await process_frame
 	_expect(
-		portuguese_floor.get_node("UI/SafeFrame/HealthPanel/TitleLabel").text
-		== "VIDA",
-		"Portuguese scene text should load from the locale file"
-	)
-	_expect(
 		portuguese_floor.get_node("UI/SafeFrame/HealthPanel/KeyLabel").text
-		== "CHAVES: 0",
-		"dynamic HUD text should support Portuguese"
+		== "0",
+		"icon-based key HUD should remain language neutral in Portuguese"
 	)
 	_expect(
 		portuguese_floor.get_node("UI/SafeFrame/MinimapPanel/TitleLabel").text

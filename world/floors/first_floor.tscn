@@ -4,13 +4,19 @@
 [ext_resource type="PackedScene" path="res://actors/player/player.tscn" id="2_player"]
 [ext_resource type="Script" path="res://ui/hud.gd" id="3_hud"]
 [ext_resource type="Script" path="res://ui/minimap.gd" id="4_minimap"]
+[ext_resource type="Script" path="res://ui/hud/key_icon.gd" id="5_key_icon"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_health_background"]
-bg_color = Color(0.11, 0.12, 0.16, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
+bg_color = Color(0.07, 0.08, 0.11, 0.96)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.37, 0.4, 0.48, 1)
+corner_radius_top_left = 7
+corner_radius_top_right = 7
+corner_radius_bottom_right = 7
+corner_radius_bottom_left = 7
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_health_fill"]
 bg_color = Color(0.2, 0.78, 0.32, 1)
@@ -26,15 +32,20 @@ script = ExtResource("1_floor")
 z_index = -10
 
 [node name="FloorTiles" type="TileMapLayer" parent="GeneratedMap"]
-self_modulate = Color(0.52, 0.55, 0.64, 1)
+self_modulate = Color(0.58, 0.58, 0.62, 1)
 texture_filter = 1
-scale = Vector2(2, 2)
+scale = Vector2(4, 4)
 
 [node name="WallTiles" type="TileMapLayer" parent="GeneratedMap"]
-self_modulate = Color(0.66, 0.68, 0.76, 1)
+self_modulate = Color(0.72, 0.72, 0.78, 1)
 z_index = 1
 texture_filter = 1
-scale = Vector2(2, 2)
+scale = Vector2(4, 4)
+
+[node name="WallDecorations" type="Node2D" parent="GeneratedMap"]
+self_modulate = Color(0.78, 0.8, 0.86, 1)
+z_index = 1
+texture_filter = 1
 
 [node name="Walls" type="StaticBody2D" parent="GeneratedMap"]
 collision_layer = 8
@@ -45,6 +56,7 @@ collision_layer = 8
 collision_mask = 7
 
 [node name="Doors" type="Node2D" parent="GeneratedMap"]
+self_modulate = Color(0.78, 0.8, 0.86, 1)
 z_index = 2
 
 [node name="Enemies" type="Node2D" parent="."]
@@ -75,36 +87,6 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="RoomInfoPanel" type="ColorRect" parent="UI/SafeFrame"]
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -302.0
-offset_top = -82.0
-offset_right = -12.0
-offset_bottom = -12.0
-color = Color(0.05, 0.06, 0.09, 0.82)
-mouse_filter = 2
-
-[node name="EnemyCounterLabel" type="Label" parent="UI/SafeFrame/RoomInfoPanel"]
-offset_left = 12.0
-offset_top = 39.0
-offset_right = 278.0
-offset_bottom = 60.0
-theme_override_colors/font_color = Color(0.72, 0.75, 0.82, 1)
-theme_override_font_sizes/font_size = 11
-text = "HUD_ENEMY_COUNT"
-
-[node name="RoomLabel" type="Label" parent="UI/SafeFrame/RoomInfoPanel"]
-offset_left = 12.0
-offset_top = 9.0
-offset_right = 278.0
-offset_bottom = 34.0
-theme_override_colors/font_color = Color(0.94, 0.78, 0.32, 1)
-theme_override_font_sizes/font_size = 12
-text = "HUD_ROOM_SUMMARY"
-
 [node name="FloorClearedLabel" type="Label" parent="UI/SafeFrame"]
 visible = false
 offset_left = 326.0
@@ -117,27 +99,16 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="HealthPanel" type="ColorRect" parent="UI/SafeFrame"]
-offset_left = 12.0
-offset_top = 12.0
-offset_right = 312.0
-offset_bottom = 100.0
-color = Color(0.05, 0.06, 0.09, 0.88)
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 282.0
+offset_bottom = 80.0
+color = Color(0, 0, 0, 0)
 mouse_filter = 2
 
-[node name="TitleLabel" type="Label" parent="UI/SafeFrame/HealthPanel"]
-offset_left = 16.0
-offset_top = 6.0
-offset_right = 120.0
-offset_bottom = 26.0
-theme_override_colors/font_color = Color(0.83, 0.86, 0.92, 1)
-theme_override_font_sizes/font_size = 12
-text = "HUD_HEALTH_TITLE"
-
 [node name="HealthBar" type="ProgressBar" parent="UI/SafeFrame/HealthPanel"]
-offset_left = 16.0
-offset_top = 28.0
-offset_right = 284.0
-offset_bottom = 62.0
+offset_right = 250.0
+offset_bottom = 34.0
 mouse_filter = 2
 theme_override_styles/background = SubResource("StyleBox_health_background")
 theme_override_styles/fill = SubResource("StyleBox_health_fill")
@@ -145,10 +116,8 @@ value = 5.0
 show_percentage = false
 
 [node name="HealthLabel" type="Label" parent="UI/SafeFrame/HealthPanel"]
-offset_left = 16.0
-offset_top = 30.0
-offset_right = 284.0
-offset_bottom = 60.0
+offset_right = 250.0
+offset_bottom = 34.0
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
 theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 2
@@ -233,34 +202,43 @@ horizontal_alignment = 2
 
 [node name="InvulnerabilityLabel" type="Label" parent="UI/SafeFrame/HealthPanel"]
 visible = false
-offset_left = 16.0
-offset_top = 65.0
-offset_right = 230.0
-offset_bottom = 85.0
+offset_left = 96.0
+offset_top = 40.0
+offset_right = 205.0
+offset_bottom = 62.0
 theme_override_colors/font_color = Color(0.42, 0.8, 1, 1)
 theme_override_font_sizes/font_size = 11
 text = "HUD_INVULNERABLE"
 
 [node name="DamageValueLabel" type="Label" parent="UI/SafeFrame/HealthPanel"]
 visible = false
-offset_left = 238.0
-offset_top = 63.0
-offset_right = 284.0
-offset_bottom = 85.0
+offset_left = 205.0
+offset_top = 38.0
+offset_right = 250.0
+offset_bottom = 64.0
 theme_override_colors/font_color = Color(1, 0.32, 0.28, 1)
 theme_override_font_sizes/font_size = 16
 text = "-1"
 horizontal_alignment = 2
 
 [node name="KeyLabel" type="Label" parent="UI/SafeFrame/HealthPanel"]
-offset_left = 170.0
-offset_top = 5.0
-offset_right = 284.0
-offset_bottom = 25.0
+offset_left = 32.0
+offset_top = 38.0
+offset_right = 90.0
+offset_bottom = 64.0
 theme_override_colors/font_color = Color(1, 0.78, 0.18, 1)
-theme_override_font_sizes/font_size = 12
-text = "HUD_KEY_COUNT"
-horizontal_alignment = 2
+theme_override_font_sizes/font_size = 16
+text = "0"
+vertical_alignment = 1
+
+[node name="KeyIcon" type="Control" parent="UI/SafeFrame/HealthPanel"]
+layout_mode = 0
+offset_left = 2.0
+offset_top = 39.0
+offset_right = 26.0
+offset_bottom = 63.0
+mouse_filter = 2
+script = ExtResource("5_key_icon")
 
 [node name="RelicPanel" type="ColorRect" parent="UI/SafeFrame"]
 visible = false

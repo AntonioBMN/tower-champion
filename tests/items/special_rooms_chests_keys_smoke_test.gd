@@ -64,7 +64,7 @@ func _run() -> void:
 	_expect(inventory.keys == 1, "collected key should enter run inventory")
 	_expect(
 		floor_scene.get_node("UI/SafeFrame/HealthPanel/KeyLabel").text
-		== "KEYS: 1",
+		== "1",
 		"HUD should display the collected key"
 	)
 

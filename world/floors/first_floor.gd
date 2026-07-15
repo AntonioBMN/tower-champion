@@ -1,12 +1,55 @@
 extends Node2D
 
 const CELL_SIZE := 64
-const ATLAS_TILE_SIZE := Vector2i(32, 32)
+const ATLAS_TILE_SIZE := Vector2i(16, 16)
 const ROOM_GRID_SPACING := Vector2i(34, 24)
 const MAP_ORIGIN := Vector2i(120, 100)
-const FLOOR_TEXTURE: Texture2D = preload(
-	"res://assets/sprites/map/dungeon/dungeon_tiles_32px.png"
+const DUNGEON_TEXTURE: Texture2D = preload(
+	"res://assets/sprites/map/pixel_crawler/dungeon_tiles.png"
 )
+const ROCK_TEXTURE: Texture2D = preload(
+	"res://assets/sprites/map/pixel_crawler/rocks.png"
+)
+const DOOR_TEXTURE: Texture2D = preload(
+	"res://assets/sprites/map/pixel_crawler/building_props.png"
+)
+const DUNGEON_TILE_SOURCE_ID := 0
+const ROCK_TILE_SOURCE_ID := 1
+const FLOOR_TILE := Vector2i(5, 1)
+const BLOOD_STAIN_TILE := Vector2i(9, 11)
+const TOP_WALL_PANEL_REGION := Rect2(0, 8, 48, 32)
+const LEFT_WALL_TOP_REGION := Rect2(0, 48, 8, 8)
+const LEFT_WALL_MIDDLE_REGION := Rect2(0, 56, 8, 8)
+const LEFT_WALL_BAND_REGION := Rect2(0, 64, 8, 8)
+const LEFT_WALL_BOTTOM_REGION := Rect2(0, 72, 8, 8)
+const RIGHT_WALL_TOP_REGION := Rect2(40, 48, 8, 8)
+const RIGHT_WALL_MIDDLE_REGION := Rect2(40, 56, 8, 8)
+const RIGHT_WALL_BAND_REGION := Rect2(40, 64, 8, 8)
+const RIGHT_WALL_BOTTOM_REGION := Rect2(40, 72, 8, 8)
+const BOTTOM_WALL_REGIONS := [
+	Rect2(8, 72, 8, 8),
+	Rect2(16, 72, 8, 8),
+	Rect2(24, 72, 8, 8),
+	Rect2(32, 72, 8, 8),
+]
+const WALL_PANEL_REPEAT_CELLS := 3
+const WALL_EDGE_SEGMENTS_PER_CELL := 2
+const WALL_EDGE_BAND_INTERVAL := 6
+const TOP_WALL_CAP_OFFSET := 12.0
+const WALL_ART_SCALE := Vector2(4.0, 4.0)
+const TOP_DOOR_CAP_SOURCE_HEIGHT := 10.0
+const SIDE_AND_BOTTOM_WALL_DEPTH := CELL_SIZE * 0.5
+const DOOR_FRAME_REGION := Rect2(64, 16, 32, 48)
+const COMMON_DOOR_PANEL_REGION := Rect2(128, 24, 32, 40)
+const DOOR_ART_SCALE := Vector2(2.0, 2.0)
+const FINAL_GATE_REGION := Rect2(0, 96, 32, 64)
+const FINAL_GATE_ART_SCALE := Vector2(6.0, 2.0)
+const ROCK_TILES := [
+	Vector2i(10, 1),
+	Vector2i(11, 1),
+	Vector2i(10, 3),
+	Vector2i(11, 3),
+]
 const ENEMY_SCENE: PackedScene = preload("res://actors/enemies/enemy.tscn")
 const RANGED_ENEMY_SCENE: PackedScene = preload(
 	"res://actors/enemies/ranged_enemy.tscn"
@@ -32,8 +75,6 @@ const ROOM_SLIDE_TRANSITION = preload(
 	"res://ui/transitions/room_slide_transition.gd"
 )
 const DISPLAY_PROFILE = preload("res://ui/display/display_profile.gd")
-const DOOR_LOCKED_COLOR := Color(0.75, 0.16, 0.12, 0.95)
-const DOOR_OPEN_COLOR := Color(0.95, 0.67, 0.2, 0.95)
 const ROOM_TYPE_START := "start"
 const ROOM_TYPE_NORMAL := "normal"
 const ROOM_TYPE_SPECIAL := "special"
@@ -47,10 +88,15 @@ const MAXIMUM_LARGE_ROOMS := 2
 const MINIMUM_GRAPH_DEAD_ENDS := 4
 const MAXIMUM_GRAPH_GENERATION_ATTEMPTS := 64
 const MAXIMUM_GRAPH_RADIUS := 4
-const CAMERA_ROOM_MARGIN_CELLS := Vector2i(2, 2)
+const CAMERA_ROOM_MARGIN_CELLS := Vector2i(2, 3)
+const CAMERA_WALL_MARGIN_LEFT := 1
+const CAMERA_WALL_MARGIN_TOP := 2
+const CAMERA_WALL_MARGIN_RIGHT := 1
+const CAMERA_WALL_MARGIN_BOTTOM := 1
 const MINIMUM_SCREEN_ROOM_SIZE := Vector2i(12, 7)
 const DOOR_EDGE_MARGIN_RATIO := 0.18
 const DOOR_TANGENT_VARIANTS := [0.28, 0.72]
+const FINAL_GATE_WIDTH_CELLS := 3
 
 @export_group("Generation")
 @export var randomize_layout: bool = true
@@ -119,6 +165,7 @@ var active_transition_overlay
 
 @onready var floor_tiles: TileMapLayer = $GeneratedMap/FloorTiles
 @onready var wall_tiles: TileMapLayer = $GeneratedMap/WallTiles
+@onready var wall_decorations: Node2D = $GeneratedMap/WallDecorations
 @onready var walls: StaticBody2D = $GeneratedMap/Walls
 @onready var obstacles: StaticBody2D = $GeneratedMap/Obstacles
 @onready var doors: Node2D = $GeneratedMap/Doors
@@ -133,10 +180,6 @@ var active_transition_overlay
 @onready var camera: Camera2D = $Player/Camera2D
 @onready var hud = $UI
 @onready var safe_frame: Control = $UI/SafeFrame
-@onready var enemy_counter_label: Label = (
-	$UI/SafeFrame/RoomInfoPanel/EnemyCounterLabel
-)
-@onready var room_label: Label = $UI/SafeFrame/RoomInfoPanel/RoomLabel
 @onready var seed_label: Label = $UI/SafeFrame/DebugPanel/SeedLabel
 @onready var floor_cleared_label: Label = $UI/SafeFrame/FloorClearedLabel
 @onready var transition_fade: ColorRect = $UI/SafeFrame/TransitionFade
@@ -181,14 +224,12 @@ func _ready() -> void:
 	_build_doors()
 	_place_player_at_start()
 	_configure_camera_for_room(0)
-	_update_enemy_counter()
 
 	transition_fade.hide()
 	victory_overlay.hide()
 	floor_cleared_label.hide()
 	seed_label.text = tr("HUD_SEED") % generation_seed
 	_spawn_room_enemies(0)
-	_update_room_ui()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -216,17 +257,39 @@ func _configure_tilemaps() -> void:
 	var tile_set := TileSet.new()
 	tile_set.tile_size = ATLAS_TILE_SIZE
 
-	var atlas := TileSetAtlasSource.new()
-	atlas.texture = FLOOR_TEXTURE
-	atlas.texture_region_size = ATLAS_TILE_SIZE
-
-	for y in range(4):
-		for x in range(4):
-			atlas.create_tile(Vector2i(x, y))
-
-	tile_set.add_source(atlas, 0)
+	_add_atlas_source(
+		tile_set,
+		DUNGEON_TEXTURE,
+		[
+			FLOOR_TILE,
+			BLOOD_STAIN_TILE,
+		],
+		DUNGEON_TILE_SOURCE_ID
+	)
+	_add_atlas_source(
+		tile_set,
+		ROCK_TEXTURE,
+		ROCK_TILES,
+		ROCK_TILE_SOURCE_ID
+	)
 	floor_tiles.tile_set = tile_set
 	wall_tiles.tile_set = tile_set
+
+
+func _add_atlas_source(
+	tile_set: TileSet,
+	texture: Texture2D,
+	atlas_tiles: Array,
+	source_id: int
+) -> void:
+	var atlas := TileSetAtlasSource.new()
+	atlas.texture = texture
+	atlas.texture_region_size = ATLAS_TILE_SIZE
+
+	for atlas_coordinates in atlas_tiles:
+		atlas.create_tile(atlas_coordinates as Vector2i)
+
+	tile_set.add_source(atlas, source_id)
 
 
 func _generate_floor() -> void:
@@ -764,8 +827,22 @@ func _configure_room_doors() -> void:
 			room_door_cells[destination][-direction] = destination_door_cell
 			room_door_ratios[room_index][direction] = room_ratio
 			room_door_ratios[destination][-direction] = destination_ratio
-			_register_open_door_edge(room_door_cell, direction)
-			_register_open_door_edge(destination_door_cell, -direction)
+			var opening_width := _door_width_for_connection(
+				room_index,
+				destination
+			)
+			_register_open_doorway(
+				room_index,
+				room_door_cell,
+				direction,
+				opening_width
+			)
+			_register_open_doorway(
+				destination,
+				destination_door_cell,
+				-direction,
+				opening_width
+			)
 
 
 func _choose_connection_door_ratios(
@@ -858,6 +935,27 @@ func _register_open_door_edge(
 	open_edges[door_cell][direction] = true
 
 
+func _register_open_doorway(
+	room_index: int,
+	door_cell: Vector2i,
+	direction: Vector2i,
+	opening_width: int
+) -> void:
+	var tangent := Vector2i(-direction.y, direction.x)
+	var half_width: int = opening_width / 2
+	for offset in range(-half_width, half_width + 1):
+		var opening_cell := door_cell + tangent * offset
+		if not room_cells[room_index].has(opening_cell):
+			continue
+		_register_open_door_edge(opening_cell, direction)
+
+
+func _door_width_for_connection(room_index: int, destination: int) -> int:
+	if room_index == final_room_index or destination == final_room_index:
+		return FINAL_GATE_WIDTH_CELLS
+	return 1
+
+
 func _find_door_cell(
 	room_index: int,
 	direction: Vector2i,
@@ -927,6 +1025,19 @@ func _generate_obstacles() -> void:
 			if _can_place_obstacle(room_index, candidate):
 				_add_obstacle(candidate)
 				added += 1
+
+		if added < desired_count:
+			var bounds: Rect2i = room_bounds[room_index]
+			for y in range(bounds.position.y + 1, bounds.end.y - 1):
+				for x in range(bounds.position.x + 1, bounds.end.x - 1):
+					if added >= desired_count:
+						break
+					var fallback := Rect2i(Vector2i(x, y), Vector2i.ONE)
+					if _can_place_obstacle(room_index, fallback):
+						_add_obstacle(fallback)
+						added += 1
+				if added >= desired_count:
+					break
 
 
 func _can_place_obstacle(room_index: int, rect: Rect2i) -> bool:
@@ -1082,33 +1193,222 @@ func _room_center_cell(room_index: int) -> Vector2i:
 func _paint_tiles() -> void:
 	floor_tiles.clear()
 	wall_tiles.clear()
-
-	var floor_variants := [
-		Vector2i(0, 3),
-		Vector2i(1, 3),
-		Vector2i(2, 3),
-		Vector2i(3, 3),
-	]
+	for child in wall_decorations.get_children():
+		child.free()
 
 	for key in floor_cells:
 		var cell: Vector2i = key
-		var variant: Vector2i = floor_variants[
-			rng.randi_range(0, floor_variants.size() - 1)
-		]
-		floor_tiles.set_cell(cell, 0, variant)
+		var floor_tile := FLOOR_TILE
+		if rng.randi_range(0, 31) == 0:
+			floor_tile = BLOOD_STAIN_TILE
+		floor_tiles.set_cell(
+			cell,
+			DUNGEON_TILE_SOURCE_ID,
+			floor_tile
+		)
 
-		for direction in _cardinal_directions():
-			var outside_cell := cell + direction
-
-			if (
-				not floor_cells.has(outside_cell)
-				and not _is_open_edge(cell, direction)
-			):
-				wall_tiles.set_cell(outside_cell, 0, Vector2i(0, 0))
+	for room_index in range(generated_room_count):
+		_paint_room_walls(room_index)
 
 	for key in obstacle_cells:
 		var obstacle_cell: Vector2i = key
-		wall_tiles.set_cell(obstacle_cell, 0, Vector2i(2, 0))
+		var rock_index: int = int(abs(
+			obstacle_cell.x * 31
+			+ obstacle_cell.y * 17
+			+ generation_seed
+		)) % ROCK_TILES.size()
+		wall_tiles.set_cell(
+			obstacle_cell,
+			ROCK_TILE_SOURCE_ID,
+			ROCK_TILES[rock_index]
+		)
+
+
+func _paint_room_walls(room_index: int) -> void:
+	var bounds: Rect2i = room_bounds[room_index]
+	_paint_room_top_wall(bounds)
+	_paint_room_top_corner(bounds, true)
+	_paint_room_top_corner(bounds, false)
+	_paint_room_side_wall(bounds, true)
+	_paint_room_side_wall(bounds, false)
+	_paint_room_bottom_wall(bounds)
+
+
+func _paint_room_top_wall(bounds: Rect2i) -> void:
+	var left := bounds.position.x
+	var top := bounds.position.y
+	for x in range(left, bounds.end.x):
+		var horizontal_variant := posmod(
+			x - left,
+			WALL_PANEL_REPEAT_CELLS
+		)
+		var panel_region_position := (
+			TOP_WALL_PANEL_REGION.position
+			+ Vector2(horizontal_variant * ATLAS_TILE_SIZE.x, 0)
+		)
+		if _is_open_edge(Vector2i(x, top), Vector2i.UP):
+			var cap_world_height := (
+				TOP_DOOR_CAP_SOURCE_HEIGHT * WALL_ART_SCALE.y
+			)
+			var wall_world_top := (
+				top * CELL_SIZE
+				- TOP_WALL_PANEL_REGION.size.y * WALL_ART_SCALE.y
+			)
+			var cap := _add_wall_sprite(
+				Rect2(
+					panel_region_position,
+					Vector2(
+						ATLAS_TILE_SIZE.x,
+						TOP_DOOR_CAP_SOURCE_HEIGHT
+					)
+				),
+				Vector2(
+					(x + 0.5) * CELL_SIZE,
+					wall_world_top + cap_world_height * 0.5
+				)
+			)
+			cap.name = "TopDoorCap_%d_%d" % [x, top]
+			continue
+		_add_wall_sprite(
+			Rect2(
+				panel_region_position,
+				Vector2(ATLAS_TILE_SIZE.x, TOP_WALL_PANEL_REGION.size.y)
+			),
+			Vector2(
+				(x + 0.5) * CELL_SIZE,
+				top * CELL_SIZE - CELL_SIZE
+			)
+		)
+
+
+func _paint_room_top_corner(bounds: Rect2i, is_left: bool) -> void:
+	var segment_size := CELL_SIZE / WALL_EDGE_SEGMENTS_PER_CELL
+	var segment_count := CAMERA_WALL_MARGIN_TOP * WALL_EDGE_SEGMENTS_PER_CELL
+	var edge_world_x := (
+		bounds.position.x * CELL_SIZE + segment_size * 0.5
+		if is_left
+		else bounds.end.x * CELL_SIZE - segment_size * 0.5
+	)
+	var top_world_y := (
+		bounds.position.y - CAMERA_WALL_MARGIN_TOP
+	) * CELL_SIZE + TOP_WALL_CAP_OFFSET
+
+	for segment_index in range(segment_count):
+		var region := (
+			LEFT_WALL_MIDDLE_REGION
+			if is_left
+			else RIGHT_WALL_MIDDLE_REGION
+		)
+		if segment_index == 0:
+			region = (
+				LEFT_WALL_TOP_REGION
+				if is_left
+				else RIGHT_WALL_TOP_REGION
+			)
+		elif segment_index % WALL_EDGE_BAND_INTERVAL == 0:
+			region = (
+				LEFT_WALL_BAND_REGION
+				if is_left
+				else RIGHT_WALL_BAND_REGION
+			)
+
+		_add_wall_sprite(
+			region,
+			Vector2(
+				edge_world_x,
+				top_world_y
+				+ segment_index * segment_size
+				+ segment_size * 0.5
+			)
+		)
+
+
+func _paint_room_side_wall(bounds: Rect2i, is_left: bool) -> void:
+	var direction := Vector2i.LEFT if is_left else Vector2i.RIGHT
+	var edge_cell_x := bounds.position.x if is_left else bounds.end.x - 1
+	var edge_world_x := (
+		bounds.position.x * CELL_SIZE + CELL_SIZE * 0.25
+		if is_left
+		else bounds.end.x * CELL_SIZE - CELL_SIZE * 0.25
+	)
+	var segment_size := CELL_SIZE / WALL_EDGE_SEGMENTS_PER_CELL
+	var segment_count := bounds.size.y * WALL_EDGE_SEGMENTS_PER_CELL
+
+	for segment_index in range(segment_count):
+		var cell_y := (
+			bounds.position.y
+			+ segment_index / WALL_EDGE_SEGMENTS_PER_CELL
+		)
+		if _is_open_edge(Vector2i(edge_cell_x, cell_y), direction):
+			continue
+
+		var region := (
+			LEFT_WALL_MIDDLE_REGION
+			if is_left
+			else RIGHT_WALL_MIDDLE_REGION
+		)
+		if segment_index == segment_count - 1:
+			region = (
+				LEFT_WALL_BOTTOM_REGION
+				if is_left
+				else RIGHT_WALL_BOTTOM_REGION
+			)
+		elif segment_index % WALL_EDGE_BAND_INTERVAL == 0:
+			region = (
+				LEFT_WALL_BAND_REGION
+				if is_left
+				else RIGHT_WALL_BAND_REGION
+			)
+
+		_add_wall_sprite(
+			region,
+			Vector2(
+				edge_world_x,
+				bounds.position.y * CELL_SIZE
+				+ segment_index * segment_size
+				+ segment_size * 0.5
+			)
+		)
+
+
+func _paint_room_bottom_wall(bounds: Rect2i) -> void:
+	var segment_size := CELL_SIZE / WALL_EDGE_SEGMENTS_PER_CELL
+	var segment_count := bounds.size.x * WALL_EDGE_SEGMENTS_PER_CELL
+	var bottom_cell_y := bounds.end.y - 1
+
+	for segment_index in range(1, segment_count - 1):
+		var cell_x := (
+			bounds.position.x
+			+ segment_index / WALL_EDGE_SEGMENTS_PER_CELL
+		)
+		if _is_open_edge(Vector2i(cell_x, bottom_cell_y), Vector2i.DOWN):
+			continue
+
+		_add_wall_sprite(
+			BOTTOM_WALL_REGIONS[
+				posmod(segment_index - 1, BOTTOM_WALL_REGIONS.size())
+			],
+			Vector2(
+				bounds.position.x * CELL_SIZE
+				+ segment_index * segment_size
+				+ segment_size * 0.5,
+				bounds.end.y * CELL_SIZE - segment_size * 0.5
+			)
+		)
+
+
+func _add_wall_sprite(
+	region: Rect2,
+	world_position: Vector2,
+	flip_h: bool = false
+) -> Sprite2D:
+	var sprite := Sprite2D.new()
+	sprite.texture = _create_atlas_texture(region)
+	sprite.position = world_position
+	sprite.scale = WALL_ART_SCALE
+	sprite.flip_h = flip_h
+	wall_decorations.add_child(sprite)
+	return sprite
 
 
 func _build_wall_and_obstacle_collisions() -> void:
@@ -1167,15 +1467,25 @@ func _build_doors() -> void:
 			var door_cell: Vector2i = room_door_cells[room_index][direction]
 			var center := _boundary_center(door_cell, direction)
 			var vertical_door: bool = direction.x != 0
+			var opening_width := _door_width_for_connection(
+				room_index,
+				destination
+			)
+			var opening_length := CELL_SIZE * opening_width - 8
 			var blocker_size := (
-				Vector2(12, CELL_SIZE - 8)
+				Vector2(12, opening_length)
 				if vertical_door
-				else Vector2(CELL_SIZE - 8, 12)
+				else Vector2(opening_length, 12)
 			)
 			var trigger_size := (
-				Vector2(52, CELL_SIZE - 8)
+				Vector2(52, opening_length)
 				if vertical_door
-				else Vector2(CELL_SIZE - 8, 52)
+				else Vector2(opening_length, 52)
+			)
+			var door_visual := _build_door_visual(
+				center,
+				direction,
+				opening_width
 			)
 
 			var blocker := StaticBody2D.new()
@@ -1200,20 +1510,143 @@ func _build_doors() -> void:
 				_on_door_body_entered.bind(room_index, destination, direction)
 			)
 
-			var visual := Polygon2D.new()
-			visual.position = center
-			visual.polygon = _rectangle_polygon(blocker_size + Vector2(8, 8))
-			visual.color = DOOR_LOCKED_COLOR
-			doors.add_child(visual)
-
 			door_entries.append({
 				"room": room_index,
+				"direction": direction,
+				"door_cell": door_cell,
+				"physical_center": center,
 				"collision": blocker_collision,
-				"visual": visual,
+				"visual": door_visual["root"],
+				"visual_anchor": door_visual["root"].position,
+				"closed_visuals": door_visual["closed_visuals"],
+				"is_final_gate": opening_width > 1,
 			})
 
 	for room_index in range(generated_room_count):
 		_refresh_room_doors(room_index)
+
+
+func _create_atlas_texture(region: Rect2) -> AtlasTexture:
+	var texture := AtlasTexture.new()
+	texture.atlas = DUNGEON_TEXTURE
+	texture.region = region
+	return texture
+
+
+func _build_door_visual(
+	center: Vector2,
+	direction: Vector2i,
+	opening_width: int
+) -> Dictionary:
+	var visual_root := Node2D.new()
+	visual_root.name = "FinalGateVisual" if opening_width > 1 else "DoorVisual"
+	visual_root.position = _door_visual_anchor(center, direction)
+	visual_root.rotation = _door_visual_rotation(direction)
+	doors.add_child(visual_root)
+
+	var closed_visuals: Array[Sprite2D] = []
+	if opening_width > 1:
+		var final_gate_half_height := (
+			FINAL_GATE_REGION.size.y * FINAL_GATE_ART_SCALE.y * 0.5
+		)
+		var final_gate := _add_final_gate_sprite(
+			visual_root,
+			Vector2(0.0, -final_gate_half_height)
+		)
+		final_gate.name = "ClosedFinalGate"
+		closed_visuals.append(final_gate)
+		return {
+			"root": visual_root,
+			"closed_visuals": closed_visuals,
+		}
+
+	var panel_region := COMMON_DOOR_PANEL_REGION
+	for panel_index in range(opening_width):
+		var tangent_offset := (
+			panel_index - (opening_width - 1) * 0.5
+		) * CELL_SIZE
+		var frame_half_height := (
+			DOOR_FRAME_REGION.size.y * DOOR_ART_SCALE.y * 0.5
+		)
+		var frame := _add_door_sprite(
+			visual_root,
+			DOOR_FRAME_REGION,
+			Vector2(tangent_offset, -frame_half_height)
+		)
+		frame.name = "DoorFrame"
+		var panel_half_height := (
+			panel_region.size.y * DOOR_ART_SCALE.y * 0.5
+		)
+		var panel := _add_door_sprite(
+			visual_root,
+			panel_region,
+			Vector2(tangent_offset, -panel_half_height)
+		)
+		panel.name = "ClosedDoorPanel"
+		panel.z_index = 1
+		closed_visuals.append(panel)
+
+	return {
+		"root": visual_root,
+		"closed_visuals": closed_visuals,
+	}
+
+
+func _add_final_gate_sprite(
+	parent: Node2D,
+	position_value: Vector2
+) -> Sprite2D:
+	var texture := AtlasTexture.new()
+	texture.atlas = DUNGEON_TEXTURE
+	texture.region = FINAL_GATE_REGION
+	var sprite := Sprite2D.new()
+	sprite.texture = texture
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	sprite.position = position_value
+	sprite.scale = FINAL_GATE_ART_SCALE
+	parent.add_child(sprite)
+	return sprite
+
+
+func _door_visual_anchor(
+	physical_center: Vector2,
+	direction: Vector2i
+) -> Vector2:
+	if direction == Vector2i.UP:
+		return physical_center
+	return (
+		physical_center
+		- Vector2(direction) * SIDE_AND_BOTTOM_WALL_DEPTH
+	)
+
+
+func _add_door_sprite(
+	parent: Node2D,
+	region: Rect2,
+	position_value: Vector2
+) -> Sprite2D:
+	var texture := AtlasTexture.new()
+	texture.atlas = DOOR_TEXTURE
+	texture.region = region
+	var sprite := Sprite2D.new()
+	sprite.texture = texture
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	sprite.position = position_value
+	sprite.scale = DOOR_ART_SCALE
+	parent.add_child(sprite)
+	return sprite
+
+
+func _door_visual_rotation(direction: Vector2i) -> float:
+	match direction:
+		Vector2i.DOWN:
+			return PI
+		Vector2i.LEFT:
+			return -PI * 0.5
+		Vector2i.RIGHT:
+			return PI * 0.5
+		_:
+			return 0.0
 
 
 func _add_area_collision(area: Area2D, size: Vector2) -> void:
@@ -1225,16 +1658,6 @@ func _add_area_collision(area: Area2D, size: Vector2) -> void:
 	area.add_child(collision)
 
 
-func _rectangle_polygon(size: Vector2) -> PackedVector2Array:
-	var half := size * 0.5
-	return PackedVector2Array([
-		Vector2(-half.x, -half.y),
-		Vector2(half.x, -half.y),
-		Vector2(half.x, half.y),
-		Vector2(-half.x, half.y),
-	])
-
-
 func _refresh_room_doors(room_index: int) -> void:
 	var locked := room_enemies_remaining[room_index] > 0
 	minimap.set_room_locked(room_index, locked)
@@ -1244,9 +1667,10 @@ func _refresh_room_doors(room_index: int) -> void:
 			continue
 
 		var collision := entry["collision"] as CollisionShape2D
-		var visual := entry["visual"] as Polygon2D
 		collision.set_deferred("disabled", not locked)
-		visual.color = DOOR_LOCKED_COLOR if locked else DOOR_OPEN_COLOR
+		for closed_visual in entry.get("closed_visuals", []):
+			if is_instance_valid(closed_visual):
+				closed_visual.visible = locked
 
 
 func _place_player_at_start() -> void:
@@ -1263,10 +1687,18 @@ func _actor_position_for_cell(cell: Vector2i) -> Vector2:
 
 func _configure_camera_for_room(room_index: int) -> void:
 	var rect := room_bounds[room_index]
-	camera.limit_left = (rect.position.x - 1) * CELL_SIZE
-	camera.limit_top = (rect.position.y - 1) * CELL_SIZE
-	camera.limit_right = (rect.position.x + rect.size.x + 1) * CELL_SIZE
-	camera.limit_bottom = (rect.position.y + rect.size.y + 1) * CELL_SIZE
+	camera.limit_left = (
+		(rect.position.x - CAMERA_WALL_MARGIN_LEFT) * CELL_SIZE
+	)
+	camera.limit_top = (
+		(rect.position.y - CAMERA_WALL_MARGIN_TOP) * CELL_SIZE
+	)
+	camera.limit_right = (
+		(rect.end.x + CAMERA_WALL_MARGIN_RIGHT) * CELL_SIZE
+	)
+	camera.limit_bottom = (
+		(rect.end.y + CAMERA_WALL_MARGIN_BOTTOM) * CELL_SIZE
+	)
 	camera.reset_smoothing()
 
 
@@ -1296,11 +1728,19 @@ func _transition_to_room(destination_room: int, direction: Vector2i) -> void:
 	_remove_room_slide_overlay()
 	active_transition_overlay = ROOM_SLIDE_TRANSITION.new()
 	safe_frame.add_child(active_transition_overlay)
+	var departure_cell: Vector2i = room_door_cells[
+		current_room_index
+	][direction]
+	var departure_door_position := _boundary_center(
+		departure_cell,
+		direction
+	)
 	var slide_is_ready: bool = await active_transition_overlay.prepare(
 		get_viewport(),
 		camera.get_screen_center_position(),
 		camera.zoom,
 		direction,
+		departure_door_position,
 		player,
 		player_sprite
 	)
@@ -1321,14 +1761,18 @@ func _transition_to_room(destination_room: int, direction: Vector2i) -> void:
 
 	_configure_camera_for_room(destination_room)
 	_spawn_room_enemies(destination_room)
-	_update_room_ui()
 	await get_tree().process_frame
 	camera.reset_smoothing()
 
 	if slide_is_ready:
+		var arrival_door_position := _boundary_center(
+			arrival_cell,
+			arrival_door_direction
+		)
 		last_transition_used_slide = await active_transition_overlay.play(
 			camera.get_screen_center_position(),
 			camera.zoom,
+			arrival_door_position,
 			room_transition_duration
 		)
 		if not last_transition_used_slide:
@@ -1389,10 +1833,6 @@ func _spawn_room_enemies(room_index: int) -> void:
 			enemy_index,
 			encounter[enemy_index]
 		)
-
-	if room_index == current_room_index:
-		_update_room_ui()
-
 
 func _spawn_encounter_enemy(
 	room_index: int,
@@ -1596,7 +2036,6 @@ func _on_enemy_died(room_index: int, defeated_enemy: Node2D) -> void:
 	)
 	remaining_enemies = maxi(remaining_enemies - 1, 0)
 	_refresh_room_doors(room_index)
-	_update_enemy_counter()
 
 	if room_enemies_remaining[room_index] == 0:
 		room_encounter_complete[room_index] = true
@@ -1604,9 +2043,6 @@ func _on_enemy_died(room_index: int, defeated_enemy: Node2D) -> void:
 			room_index,
 			defeated_enemy.global_position + Vector2(0.0, 50.0)
 		)
-
-	if room_index == current_room_index:
-		_update_room_ui()
 
 	if remaining_enemies == 0:
 		_complete_floor()
@@ -1644,36 +2080,6 @@ func _try_drop_key(drop_position: Vector2, room_index: int) -> void:
 
 func _register_map_content(content: Node, room_index: int) -> void:
 	content.set_meta("room_index", room_index)
-
-
-func _update_enemy_counter() -> void:
-	enemy_counter_label.text = tr("HUD_ENEMY_COUNT") % remaining_enemies
-
-
-func _update_room_ui() -> void:
-	var room_type_name := _room_type_display_name(
-		room_types[current_room_index]
-	)
-	var status := _room_encounter_status(current_room_index)
-	room_label.text = tr("HUD_ROOM_SUMMARY") % [
-		room_type_name,
-		current_room_index + 1,
-		generated_room_count,
-		status,
-	]
-
-
-func _room_encounter_status(room_index: int) -> String:
-	if exit_is_available and room_index == final_room_index:
-		return tr("ROOM_STATUS_EXIT_OPEN")
-
-	if room_encounter_complete[room_index]:
-		return tr("ROOM_STATUS_CLEARED")
-
-	if not spawned_rooms.has(room_index):
-		return tr("ROOM_STATUS_WAITING")
-
-	return tr("ROOM_STATUS_COMBAT") % room_enemies_remaining[room_index]
 
 
 func _room_type_display_name(room_type: String) -> String:
@@ -1728,7 +2134,6 @@ func _spawn_floor_exit() -> void:
 	floor_exit.connect("entered", _on_floor_exit_entered)
 	exit_is_available = true
 	minimap.set_exit_available(final_room_index, true)
-	_update_room_ui()
 
 
 func _on_floor_exit_entered(body: Node2D) -> void:

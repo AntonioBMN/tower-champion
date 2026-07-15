@@ -161,11 +161,18 @@ script = ExtResource("1_qi2p4")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1184044755]
 texture_filter = 1
+position = Vector2(0, -28)
 scale = Vector2(2, 2)
 sprite_frames = SubResource("SpriteFrames_m50k7")
 animation = &"walk"
 autoplay = "idle"
 frame_progress = 0.29214275
+
+[node name="GroundShadow" type="Polygon2D" parent="."]
+z_index = -1
+position = Vector2(0, 60)
+polygon = PackedVector2Array(-27, 0, -24.9, -3.6, -19.1, -6.1, -10.3, -7, 0, -7, 10.3, -7, 19.1, -6.1, 24.9, -3.6, 27, 0, 24.9, 3.6, 19.1, 6.1, 10.3, 7, 0, 7, -10.3, 7, -19.1, 6.1, -24.9, 3.6)
+color = Color(0.01, 0.015, 0.02, 0.34)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1024555400]
 position = Vector2(0, 50)

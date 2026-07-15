@@ -97,15 +97,22 @@ func _run() -> void:
 	)
 
 	var final_door_collision: CollisionShape2D
+	var final_closed_visuals: Array = []
 	for entry in floor_scene.get("door_entries"):
 		if entry["room"] == final_room_index:
 			final_door_collision = entry["collision"] as CollisionShape2D
+			final_closed_visuals = entry["closed_visuals"]
 			break
 
 	_expect(
 		is_instance_valid(final_door_collision)
 		and not final_door_collision.disabled,
 		"doors should remain locked during the encounter"
+	)
+	_expect(
+		final_closed_visuals.size() == 1
+		and final_closed_visuals.all(func(visual): return visual.visible),
+		"the final room should close one large double gate during combat"
 	)
 
 	var first_enemy := _get_room_enemies(floor_scene, final_room_index)[0]
@@ -138,6 +145,10 @@ func _run() -> void:
 	_expect(
 		final_door_collision.disabled,
 		"doors should open after the encounter"
+	)
+	_expect(
+		final_closed_visuals.all(func(visual): return not visual.visible),
+		"door panels should reveal the open frame after the encounter"
 	)
 	_expect(
 		not floor_scene.get("exit_is_available"),

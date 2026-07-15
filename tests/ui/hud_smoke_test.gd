@@ -23,6 +23,9 @@ func _run() -> void:
 	var health_bar := floor_scene.get_node(
 		"UI/SafeFrame/HealthPanel/HealthBar"
 	) as ProgressBar
+	var health_panel := floor_scene.get_node(
+		"UI/SafeFrame/HealthPanel"
+	) as ColorRect
 	var health_label := floor_scene.get_node(
 		"UI/SafeFrame/HealthPanel/HealthLabel"
 	) as Label
@@ -38,14 +41,14 @@ func _run() -> void:
 	var key_label := floor_scene.get_node(
 		"UI/SafeFrame/HealthPanel/KeyLabel"
 	) as Label
+	var key_icon := floor_scene.get_node(
+		"UI/SafeFrame/HealthPanel/KeyIcon"
+	) as Control
 	var relic_panel := floor_scene.get_node(
 		"UI/SafeFrame/RelicPanel"
 	) as ColorRect
 	var debug_panel := floor_scene.get_node(
 		"UI/SafeFrame/DebugPanel"
-	) as ColorRect
-	var room_info_panel := floor_scene.get_node(
-		"UI/SafeFrame/RoomInfoPanel"
 	) as ColorRect
 	var map_backdrop := floor_scene.get_node(
 		"UI/SafeFrame/MapBackdrop"
@@ -67,12 +70,22 @@ func _run() -> void:
 	_expect(health_bar.max_value == 90.0, "health bar maximum should match player")
 	_expect(health_bar.value == 90.0, "health bar should start full")
 	_expect(health_label.text == "90 / 90", "health text should show initial value")
+	_expect(
+		health_panel.color.a == 0.0
+		and not health_panel.has_node("TitleLabel"),
+		"health HUD should contain only the gameplay bar and counters"
+	)
+	_expect(
+		key_icon.visible
+		and key_label.position.y >= health_bar.position.y + health_bar.size.y,
+		"key icon and count should sit below the health bar"
+	)
 	_expect(relic_list.text == "None", "relic HUD should start empty")
 	_expect(not relic_panel.visible, "empty relic HUD should not occupy screen space")
 	_expect(not debug_panel.visible, "technical HUD should start hidden")
 	_expect(
-		room_info_panel.size.x <= 290.0 and room_info_panel.size.y <= 70.0,
-		"room information should remain compact in the lower-right corner"
+		not floor_scene.has_node("UI/SafeFrame/RoomInfoPanel"),
+		"room combat diagnostics should not occupy the lower-right corner"
 	)
 	var debug_event := InputEventKey.new()
 	debug_event.keycode = KEY_F3
@@ -81,9 +94,9 @@ func _run() -> void:
 	_expect(debug_panel.visible, "F3 should reveal technical HUD information")
 	hud._unhandled_input(debug_event)
 	_expect(not debug_panel.visible, "F3 should hide technical HUD information")
-	_expect(key_label.text == "KEYS: 0", "key HUD should start at zero")
+	_expect(key_label.text == "0", "key HUD should start at zero")
 	player.call("add_keys", 2)
-	_expect(key_label.text == "KEYS: 2", "key HUD should follow inventory")
+	_expect(key_label.text == "2", "key HUD should follow inventory")
 
 	_expect(not hud.is_map_expanded(), "minimap should start in compact mode")
 	_expect(

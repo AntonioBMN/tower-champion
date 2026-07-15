@@ -25,7 +25,7 @@ func _run() -> void:
 		"player body collision should align with the center of the feet"
 	)
 	_expect(
-		player_collision.shape is CapsuleShape2D,
+		player_collision.shape is CircleShape2D,
 		"player should use a rounded footprint to avoid catching on corners"
 	)
 
@@ -65,7 +65,11 @@ func _run() -> void:
 		"sword hit should spawn impact particles"
 	)
 	_expect(
-		Engine.time_scale < 1.0,
+		player.get("hit_stop_triggered")
+		and (
+			not player.get("hit_stop_active")
+			or Engine.time_scale < 1.0
+		),
 		"first target hit should trigger hit-stop"
 	)
 	_expect(

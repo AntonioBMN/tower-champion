@@ -44,6 +44,7 @@ func _validate_layout(floor_scene: Node, seed_value: int) -> void:
 	var large_rooms: Dictionary = floor_scene.get("large_room_indices")
 	var footprints: Dictionary = floor_scene.get("large_room_footprints")
 	var screen_room_size: Vector2i = floor_scene.call("_screen_room_size")
+	var door_entries: Array = floor_scene.get("door_entries")
 	var occupied: Dictionary = {}
 	var minimap := floor_scene.get_node("UI/SafeFrame/MinimapPanel/Minimap")
 
@@ -213,6 +214,36 @@ func _validate_layout(floor_scene: Node, seed_value: int) -> void:
 	_expect(
 		room_types[final_room_index] == "final",
 		"seed %d should retain the final room role" % seed_value
+	)
+	var final_gate_direction: Vector2i = connections[
+		final_room_index
+	].keys()[0]
+	var final_gate_cell: Vector2i = door_cells[
+		final_room_index
+	][final_gate_direction]
+	var final_gate_tangent := Vector2i(
+		-final_gate_direction.y,
+		final_gate_direction.x
+	)
+	for offset in range(-1, 2):
+		var opening_cell := final_gate_cell + final_gate_tangent * offset
+		_expect(
+			floor_scene.call(
+				"_is_open_edge",
+				opening_cell,
+				final_gate_direction
+			),
+			"seed %d final-room gate should open three wall cells"
+			% seed_value
+		)
+	var final_gate_entry_count := 0
+	for entry in door_entries:
+		if entry["is_final_gate"]:
+			final_gate_entry_count += 1
+	_expect(
+		final_gate_entry_count == 2,
+		"seed %d should build the large gate on both sides of the final link"
+		% seed_value
 	)
 
 	_expect(
